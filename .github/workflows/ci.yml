@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile all scripts (no dependencies)
+        run: |
+          python -m py_compile \
+            skills/gedcom-reader/scripts/gedcom.py \
+            skills/gedcom-reader/scripts/gedcom_write.py \
+            skills/gedcom-report/scripts/report.py \
+            skills/gedcom-tree/scripts/tree.py
+
+      - name: Run test suite
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python -m unittest discover -s tests -v
+
+  packaging:
+    # Python-independent checks; run once, not across the matrix.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the three gedcom.py copies are in sync
+        run: |
+          set -e
+          a=$(md5sum skills/gedcom-reader/scripts/gedcom.py | cut -d' ' -f1)
+          b=$(md5sum skills/gedcom-report/scripts/gedcom.py | cut -d' ' -f1)
+          c=$(md5sum skills/gedcom-tree/scripts/gedcom.py   | cut -d' ' -f1)
+          if [ "$a" != "$b" ] || [ "$a" != "$c" ]; then
+            echo "::error::gedcom.py copies diverged ($a / $b / $c)"; exit 1
+          fi
+          echo "parser copies in sync: $a"
+
+      - name: Check committed download-skills/*.zip match the source skills
+        run: |
+          set -e
+          # Compare the *extracted content* of the committed ZIPs against the
+          # source skills (robust to any cross-platform zip byte differences).
+          committed=$(mktemp -d); expected=$(mktemp -d)
+          for z in download-skills/*.zip; do unzip -q "$z" -d "$committed"; done
+          for s in gedcom-reader gedcom-report gedcom-tree genealogy-research; do
+            cp -R "skills/$s" "$expected/$s"
+          done
+          find "$committed" "$expected" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
+          if ! diff -rq "$committed" "$expected"; then
+            echo "::error::download-skills/*.zip are stale. Run './install.sh zip' and commit."
+            exit 1
+          fi
+          echo "download-skills ZIPs match the source skills."

@@ -1,0 +1,129 @@
+0 HEAD
+1 SOUR gedcom-skills
+2 NAME gedcom-skills reader/writer
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+1 DATE 09 JUL 2026
+1 FILE Demo Family Tree
+0 @I1@ INDI
+1 NAME Иван /Петров/
+2 GIVN Иван
+2 SURN Петров
+1 SEX M
+1 BIRT
+2 DATE ABT 1900
+2 PLAC Тула, Россия
+1 DEAT
+2 DATE 1974
+1 OCCU Кузнец
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Анна /Соколова/
+2 GIVN Анна
+2 SURN Соколова
+1 SEX F
+1 BIRT
+2 DATE ABT 1904
+2 PLAC Тула, Россия
+1 DEAT
+2 DATE 1981
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Николай /Петров/
+2 GIVN Николай
+2 SURN Петров
+1 SEX M
+1 BIRT
+2 DATE 12 MAR 1928
+2 PLAC Тула, Россия
+1 DEAT
+2 DATE 5 JUN 1995
+1 OCCU Инженер
+1 FAMC @F1@
+1 FAMS @F2@
+0 @I4@ INDI
+1 NAME Мария /Иванова/
+2 GIVN Мария
+2 SURN Иванова
+1 SEX F
+1 BIRT
+2 DATE 1931
+2 PLAC Рязань, Россия
+1 DEAT
+2 DATE 2010
+1 OCCU Учительница
+1 FAMS @F2@
+0 @I5@ INDI
+1 NAME Ольга /Петрова/
+2 GIVN Ольга
+2 SURN Петрова
+1 SEX F
+1 BIRT
+2 DATE 1930
+2 PLAC Тула, Россия
+1 FAMC @F1@
+0 @I6@ INDI
+1 NAME Сергей /Петров/
+2 GIVN Сергей
+2 SURN Петров
+1 SEX M
+1 BIRT
+2 DATE 9 FEB 1960
+2 PLAC Москва, Россия
+1 OCCU Врач
+1 FAMC @F2@
+1 FAMS @F3@
+0 @I7@ INDI
+1 NAME Елена /Волкова/
+2 GIVN Елена
+2 SURN Волкова
+1 SEX F
+1 BIRT
+2 DATE 1962
+2 PLAC Санкт-Петербург, Россия
+1 OCCU Архитектор
+1 FAMS @F3@
+0 @I8@ INDI
+1 NAME Дмитрий /Петров/
+2 GIVN Дмитрий
+2 SURN Петров
+1 SEX M
+1 BIRT
+2 DATE 1985
+2 PLAC Москва, Россия
+1 OCCU Программист
+1 FAMC @F3@
+0 @I9@ INDI
+1 NAME Анна /Петрова/
+2 GIVN Анна
+2 SURN Петрова
+1 SEX F
+1 BIRT
+2 DATE 1988
+2 PLAC Москва, Россия
+1 OCCU Журналист
+1 FAMC @F3@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 MARR
+2 DATE 1926
+1 CHIL @I3@
+1 CHIL @I5@
+0 @F2@ FAM
+1 HUSB @I3@
+1 WIFE @I4@
+1 MARR
+2 DATE 6 SEP 1955
+2 PLAC Москва, Россия
+1 CHIL @I6@
+0 @F3@ FAM
+1 HUSB @I6@
+1 WIFE @I7@
+1 MARR
+2 DATE 1983
+1 CHIL @I8@
+1 CHIL @I9@
+0 TRLR

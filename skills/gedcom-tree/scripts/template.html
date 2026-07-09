@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><!--__TITLE__--></title>
+<style>
+  :root{
+    --bg:#f4f1ea; --panel:#fffdf8; --ink:#2b2620; --muted:#7c7266;
+    --line:#c9beac; --male:#cfe3f2; --male-b:#5a86a8; --female:#f6dbe4;
+    --female-b:#b0637f; --unknown:#e7e1d5; --unknown-b:#a89e8c;
+    --focus:#f4c95d; --focus-b:#b8860b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,
+    "Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);
+    background:var(--bg);overflow:hidden}
+  #bar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;
+    align-items:center;gap:12px;padding:0 16px;background:var(--panel);
+    border-bottom:1px solid var(--line);z-index:10;
+    box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  #bar h1{font-size:15px;margin:0;font-weight:600;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:30vw}
+  #bar .sub{color:var(--muted);font-size:12px;white-space:nowrap}
+  #search{position:relative;margin-left:auto}
+  #search input{width:230px;padding:7px 10px;border:1px solid var(--line);
+    border-radius:8px;background:#fff;font-size:13px;color:var(--ink)}
+  #results{position:absolute;top:38px;right:0;width:300px;max-height:340px;
+    overflow:auto;background:#fff;border:1px solid var(--line);border-radius:8px;
+    box-shadow:0 6px 20px rgba(0,0,0,.15);display:none;z-index:20}
+  #results div{padding:8px 10px;cursor:pointer;font-size:13px;
+    border-bottom:1px solid #f0eae0}
+  #results div:last-child{border-bottom:none}
+  #results div:hover{background:#f4efe4}
+  #results .yrs{color:var(--muted);font-size:11px;margin-left:6px}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer}
+  .btn:hover{background:#f4efe4}
+  #ctl{position:fixed;bottom:16px;left:16px;display:flex;gap:6px;z-index:10}
+  #ctl .btn{width:38px;height:38px;font-size:18px;line-height:1;padding:0}
+  #gens{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:10px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:6px 12px;z-index:10;
+    font-size:12px;color:var(--muted)}
+  #gens label{display:flex;align-items:center;gap:5px}
+  #gens select{font-size:12px;padding:2px 4px}
+  #legend{position:fixed;bottom:16px;right:16px;display:flex;gap:14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:8px 12px;z-index:10;font-size:12px}
+  #legend span{display:inline-flex;align-items:center;gap:6px}
+  #legend i{width:14px;height:14px;border-radius:3px;border:1px solid}
+  .sw-m{background:var(--male);border-color:var(--male-b)}
+  .sw-f{background:var(--female);border-color:var(--female-b)}
+  .sw-u{background:var(--unknown);border-color:var(--unknown-b)}
+  .sw-c{background:var(--focus);border-color:var(--focus-b)}
+  #stage{position:absolute;inset:52px 0 0 0;cursor:grab}
+  #stage.drag{cursor:grabbing}
+  svg{width:100%;height:100%;display:block;touch-action:none}
+  .link{fill:none;stroke:var(--line);stroke-width:1.6}
+  .card{cursor:pointer}
+  .card:hover rect{filter:brightness(0.97)}
+  .m rect{fill:var(--male);stroke:var(--male-b)}
+  .f rect{fill:var(--female);stroke:var(--female-b)}
+  .u rect{fill:var(--unknown);stroke:var(--unknown-b)}
+  .card rect{stroke-width:1.5}
+  .focus rect{fill:var(--focus);stroke:var(--focus-b);stroke-width:2.5}
+  .card .nm{font-size:13px;font-weight:600;fill:var(--ink)}
+  .card .yr{font-size:11px;fill:var(--muted)}
+  #empty{position:absolute;inset:52px 0 0 0;display:none;align-items:center;
+    justify-content:center;color:var(--muted);font-size:15px;text-align:center}
+  #tip{position:fixed;pointer-events:none;background:#2b2620;color:#fff;
+    font-size:12px;padding:6px 9px;border-radius:6px;opacity:0;z-index:30;
+    max-width:260px;transition:opacity .1s;line-height:1.45}
+  #tip b{color:#f4c95d}
+</style>
+</head>
+<body>
+<div id="bar">
+  <h1 id="title">Древо</h1>
+  <span class="sub" id="counts"></span>
+  <div id="search">
+    <input id="q" type="text" placeholder="Поиск по имени…" autocomplete="off">
+    <div id="results"></div>
+  </div>
+</div>
+
+<div id="stage">
+  <svg id="svg"><g id="root"></g></svg>
+</div>
+<div id="empty">Нет данных для отображения.</div>
+
+<div id="ctl">
+  <button class="btn" id="zin" title="Приблизить">+</button>
+  <button class="btn" id="zout" title="Отдалить">−</button>
+  <button class="btn" id="zfit" title="Показать всё" style="font-size:14px">⤢</button>
+</div>
+
+<div id="gens">
+  <label>Предки
+    <select id="up">
+      <option>0</option><option>1</option><option>2</option>
+      <option selected>3</option><option>4</option><option>5</option>
+      <option>6</option>
+    </select>
+  </label>
+  <label>Потомки
+    <select id="down">
+      <option>0</option><option>1</option><option selected>2</option>
+      <option>3</option><option>4</option><option>5</option><option>6</option>
+    </select>
+  </label>
+</div>
+
+<div id="legend">
+  <span><i class="sw-c"></i>в фокусе</span>
+  <span><i class="sw-m"></i>муж.</span>
+  <span><i class="sw-f"></i>жен.</span>
+  <span><i class="sw-u"></i>?</span>
+</div>
+
+<div id="tip"></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+(function(){
+  "use strict";
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.getElementById("svg");
+  const root = document.getElementById("root");
+  const stage = document.getElementById("stage");
+  const tip = document.getElementById("tip");
+
+  if(!DATA || !DATA.people || !Object.keys(DATA.people).length){
+    document.getElementById("empty").style.display = "flex";
+    return;
+  }
+
+  const P = DATA.people, F = DATA.families;
+  document.getElementById("title").textContent = "Древо — " + DATA.meta.file;
+  document.getElementById("counts").textContent =
+    DATA.counts.people + " чел. · " + DATA.counts.families + " семей";
+
+  let focus = DATA.focus;
+  let genUp = 3, genDown = 2;
+
+  // Layout geometry.
+  const CARD_W = 152, CARD_H = 46, H_GAP = 24, V_GAP = 92, SP_GAP = 12;
+
+  const norm = s => String(s || "").toLowerCase();
+  function years(p){
+    const b = p.birth, d = p.death;
+    if(b && d) return b + "–" + d;
+    if(b) return "р. " + b;
+    if(d) return "ум. " + d;
+    return "";
+  }
+  const cls = p => p.sex === "M" ? "m" : p.sex === "F" ? "f" : "u";
+  function trunc(str, n){
+    str = str || "";
+    return str.length > n ? str.slice(0, n - 1) + "…" : str;
+  }
+
+  function parentsFam(id){
+    const p = P[id]; if(!p) return null;
+    for(const fid of p.famc){ if(F[fid]) return F[fid]; }
+    return null;
+  }
+  function spouseFams(id){
+    const p = P[id]; if(!p) return [];
+    return p.fams.map(fid => F[fid]).filter(Boolean);
+  }
+
+  /* --------------------------------------------------------------------- *
+   * Layout: a tidy chart centred on `focus`.                              *
+   *   - descendants downward (genDown levels), parents centred on kids    *
+   *   - ancestors upward (genUp levels), pedigree spread                  *
+   * --------------------------------------------------------------------- */
+  let nodes, links, nextX;
+
+  function mkNode(id, y, kind){
+    return { id, y, kind, x: 0 };
+  }
+
+  // Build the descendant subtree of `id`. `nextX` is a shared left-to-right
+  // cursor tracking the next free x-slot; every card (person + spouses) that is
+  // placed advances it, so siblings and their sub-trees never overlap.
+  function buildDown(id, depth, key, seen){
+    if(seen.has(id)) return null;         // avoid loops / double subtrees
+    seen.add(id);
+    const node = mkNode(id, depth * V_GAP, "person");
+    nodes.set(key, node);
+
+    // Gather spouse-units and lay out this couple's children first, so the
+    // parent block can be centred over them.
+    const spouseUnits = [];
+    const kidNodes = [];
+    const blockStart = nextX;          // left edge of this subtree
+    for(const fam of spouseFams(id)){
+      const other = fam.husb === id ? fam.wife : fam.husb;
+      const unit = { fam, other, otherKey: null };
+      if(depth < genDown){
+        for(const c of fam.chil){
+          const ck = key + ">" + c;
+          const cn = buildDown(c, depth + 1, ck, seen);
+          if(cn) kidNodes.push(cn);
+        }
+      }
+      spouseUnits.push(unit);
+    }
+    node._spouses = spouseUnits;
+
+    // How wide is the couple's own row (the person + every spouse card)?
+    let coupleCards = 1;
+    for(const u of spouseUnits){ if(u.other && P[u.other]) coupleCards++; }
+    const coupleW = coupleCards * CARD_W + (coupleCards - 1) * SP_GAP;
+
+    if(kidNodes.length){
+      // Centre the couple row over the span of its children.
+      const kidsLeft = kidNodes[0].x;
+      const kidsRight = kidNodes[kidNodes.length - 1].x + CARD_W;
+      const kidsCenter = (kidsLeft + kidsRight) / 2;
+      node.x = kidsCenter - coupleW / 2;
+      // If the couple row is wider than the children block, it may spill left
+      // of where the block started and collide with the previous sibling.
+      // Shift the whole thing right so it never crosses blockStart.
+      if(node.x < blockStart){
+        const shift = blockStart - node.x;
+        node.x += shift;
+        for(const kn of collectSubtree(key)) kn.x += shift;
+        nextX += shift;
+      }
+    } else {
+      node.x = nextX;
+    }
+
+    // Place spouse cards to the right of the person and advance the cursor
+    // past the whole couple row so the next sibling starts clear of it.
+    let ox = node.x + CARD_W + SP_GAP;
+    for(const u of spouseUnits){
+      if(u.other && P[u.other]){
+        const sk = key + "~" + u.other;
+        const sn = mkNode(u.other, node.y, "spouse");
+        sn.x = ox;
+        nodes.set(sk, sn);
+        u.otherKey = sk;
+        ox += CARD_W + SP_GAP;
+      }
+      // Links from couple down to each child.
+      if(depth < genDown){
+        for(const c of u.fam.chil){
+          const cn = nodes.get(key + ">" + c);
+          if(cn) links.push({ from: node, to: cn });
+        }
+      }
+    }
+    // Cursor must clear the right edge of the couple row *and* the children.
+    const coupleRight = node.x + coupleW;
+    nextX = Math.max(nextX, coupleRight) + H_GAP;
+    return node;
+  }
+
+  // Every node strictly inside the subtree rooted at `rootKey`. Child keys are
+  // `rootKey + ">" + …` and spouse keys `…+"~"+…`, so a prefix test on the two
+  // separators identifies all descendants (children, their spouses, grandkids).
+  function collectSubtree(rootKey){
+    const out = [];
+    for(const [k, n] of nodes){
+      if(k === rootKey) continue;
+      if(k.startsWith(rootKey + ">") || k.startsWith(rootKey + "~")) out.push(n);
+    }
+    return out;
+  }
+
+  function buildUp(id, depth, key, xCenter, span){
+    const fam = parentsFam(id);
+    if(!fam || depth > genUp) return;
+    const parents = [];
+    if(fam.husb && P[fam.husb]) parents.push(fam.husb);
+    if(fam.wife && P[fam.wife]) parents.push(fam.wife);
+    if(!parents.length) return;
+    const y = -depth * V_GAP;
+    const childNode = nodes.get(key);
+    const half = span / 2;
+    parents.forEach((pid, idx) => {
+      const pkey = key + "^" + idx + pid;
+      const pn = mkNode(pid, y, "anc");
+      pn.x = parents.length === 1 ? xCenter
+           : xCenter + (idx === 0 ? -half : half);
+      nodes.set(pkey, pn);
+      if(childNode) links.push({ from: pn, to: childNode });
+      buildUp(pid, depth + 1, pkey, pn.x, span / 2);
+    });
+  }
+
+  function layout(){
+    nodes = new Map();
+    links = [];
+    nextX = 0;
+    const focusNode = buildDown(focus, 0, "F:" + focus, new Set());
+    if(focusNode){
+      const span = (CARD_W + H_GAP) * Math.pow(1.9, Math.max(0, genUp - 1));
+      buildUp(focus, 1, "F:" + focus, focusNode.x, span);
+    }
+  }
+
+  /* --------------------------------------------------------------------- *
+   * Render                                                                *
+   * --------------------------------------------------------------------- */
+  let bounds = null, scale = 1, tx = 0, ty = 0;
+
+  function apply(){
+    root.setAttribute("transform",
+      "translate(" + tx + "," + ty + ") scale(" + scale + ")");
+  }
+
+  function fitView(){
+    if(!bounds) return;
+    const vw = stage.clientWidth, vh = stage.clientHeight;
+    scale = Math.min(vw / bounds.w, vh / bounds.h, 1.4);
+    tx = (vw - bounds.w * scale) / 2 - bounds.x * scale;
+    ty = (vh - bounds.h * scale) / 2 - bounds.y * scale;
+    apply();
+  }
+
+  function render(){
+    layout();
+    while(root.firstChild) root.removeChild(root.firstChild);
+
+    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    for(const n of nodes.values()){
+      minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x + CARD_W);
+      minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y + CARD_H);
+    }
+
+    // Links.
+    const gl = document.createElementNS(NS, "g");
+    root.appendChild(gl);
+    for(const lk of links){
+      const a = lk.from, b = lk.to;
+      const x1 = a.x + CARD_W / 2, y1 = a.y + CARD_H;
+      const x2 = b.x + CARD_W / 2, y2 = b.y;
+      const my = (y1 + y2) / 2;
+      const path = document.createElementNS(NS, "path");
+      path.setAttribute("d",
+        "M" + x1 + "," + y1 + " C" + x1 + "," + my + " " +
+        x2 + "," + my + " " + x2 + "," + y2);
+      path.setAttribute("class", "link");
+      gl.appendChild(path);
+    }
+
+    // Cards.
+    for(const n of nodes.values()){
+      const p = P[n.id]; if(!p) continue;
+      const g = document.createElementNS(NS, "g");
+      const isFocus = (n.id === focus && n.kind === "person" && n.y === 0);
+      g.setAttribute("class", "card " + cls(p) + (isFocus ? " focus" : ""));
+      g.setAttribute("transform", "translate(" + n.x + "," + n.y + ")");
+
+      const rect = document.createElementNS(NS, "rect");
+      rect.setAttribute("width", CARD_W);
+      rect.setAttribute("height", CARD_H);
+      rect.setAttribute("rx", 9); rect.setAttribute("ry", 9);
+      g.appendChild(rect);
+
+      const nm = document.createElementNS(NS, "text");
+      nm.setAttribute("class", "nm");
+      nm.setAttribute("x", CARD_W / 2); nm.setAttribute("y", 20);
+      nm.setAttribute("text-anchor", "middle");
+      nm.textContent = trunc(p.name, 21);
+      g.appendChild(nm);
+
+      const yr = document.createElementNS(NS, "text");
+      yr.setAttribute("class", "yr");
+      yr.setAttribute("x", CARD_W / 2); yr.setAttribute("y", 37);
+      yr.setAttribute("text-anchor", "middle");
+      yr.textContent = years(p);
+      g.appendChild(yr);
+
+      g.addEventListener("click", e => { e.stopPropagation(); setFocus(n.id); });
+      g.addEventListener("mouseenter", e => showTip(e, p));
+      g.addEventListener("mousemove", moveTip);
+      g.addEventListener("mouseleave", hideTip);
+      root.appendChild(g);
+    }
+
+    const pad = 70;
+    bounds = { x: minX - pad, y: minY - pad,
+               w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 };
+    fitView();
+  }
+
+  function setFocus(id){
+    if(!P[id]) return;
+    focus = id;
+    render();
+  }
+
+  /* --------------------------------------------------------------------- *
+   * Tooltip                                                               *
+   * --------------------------------------------------------------------- */
+  function showTip(e, p){
+    let html = "<b>" + esc(p.name) + "</b>";
+    const y = years(p);
+    if(y) html += "<br>" + esc(y);
+    if(p.place) html += "<br>" + esc(p.place);
+    if(p.occ) html += "<br>" + esc(p.occ);
+    html += "<br><span style='color:#bbb'>клик — в центр</span>";
+    tip.innerHTML = html;
+    tip.style.opacity = "1";
+    moveTip(e);
+  }
+  function moveTip(e){
+    tip.style.left = (e.clientX + 14) + "px";
+    tip.style.top = (e.clientY + 14) + "px";
+  }
+  function hideTip(){ tip.style.opacity = "0"; }
+  function esc(s){
+    return String(s).replace(/[&<>]/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  /* --------------------------------------------------------------------- *
+   * Pan / zoom                                                            *
+   * --------------------------------------------------------------------- */
+  let dragging = false, sx = 0, sy = 0, stx = 0, sty = 0;
+  stage.addEventListener("mousedown", e => {
+    if(e.target.closest(".card")) return;
+    dragging = true; stage.classList.add("drag");
+    sx = e.clientX; sy = e.clientY; stx = tx; sty = ty;
+  });
+  window.addEventListener("mousemove", e => {
+    if(!dragging) return;
+    tx = stx + (e.clientX - sx); ty = sty + (e.clientY - sy); apply();
+  });
+  window.addEventListener("mouseup", () => {
+    dragging = false; stage.classList.remove("drag");
+  });
+  stage.addEventListener("wheel", e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    zoomAt(e.clientX, e.clientY - 52, factor);
+  }, { passive: false });
+
+  function zoomAt(cx, cy, factor){
+    const ns = Math.max(0.15, Math.min(3, scale * factor));
+    const k = ns / scale;
+    tx = cx - (cx - tx) * k;
+    ty = cy - (cy - ty) * k;
+    scale = ns; apply();
+  }
+  function zoomCenter(factor){
+    zoomAt(stage.clientWidth / 2, stage.clientHeight / 2, factor);
+  }
+
+  document.getElementById("zin").onclick = () => zoomCenter(1.2);
+  document.getElementById("zout").onclick = () => zoomCenter(1 / 1.2);
+  document.getElementById("zfit").onclick = () => fitView();
+
+  document.getElementById("up").addEventListener("change", e => {
+    genUp = parseInt(e.target.value, 10); render();
+  });
+  document.getElementById("down").addEventListener("change", e => {
+    genDown = parseInt(e.target.value, 10); render();
+  });
+
+  /* --------------------------------------------------------------------- *
+   * Search                                                                *
+   * --------------------------------------------------------------------- */
+  const q = document.getElementById("q");
+  const results = document.getElementById("results");
+  const allPeople = Object.values(P);
+
+  q.addEventListener("input", () => {
+    const v = norm(q.value).trim();
+    if(!v){ results.style.display = "none"; return; }
+    const hits = allPeople
+      .filter(p => norm(p.name).includes(v))
+      .sort((a, b) => (a.birth || 9999) - (b.birth || 9999))
+      .slice(0, 40);
+    if(!hits.length){
+      results.innerHTML = "<div style='color:#999'>Никого не найдено</div>";
+      results.style.display = "block"; return;
+    }
+    results.innerHTML = "";
+    for(const p of hits){
+      const d = document.createElement("div");
+      d.innerHTML = esc(p.name) +
+        "<span class='yrs'>" + esc(years(p)) + "</span>";
+      d.onclick = () => {
+        setFocus(p.id);
+        results.style.display = "none";
+        q.value = "";
+      };
+      results.appendChild(d);
+    }
+    results.style.display = "block";
+  });
+  document.addEventListener("click", e => {
+    if(!document.getElementById("search").contains(e.target))
+      results.style.display = "none";
+  });
+  q.addEventListener("keydown", e => {
+    if(e.key === "Enter"){
+      const first = results.querySelector("div[onclick], div");
+      if(first && first.onclick) first.onclick();
+    } else if(e.key === "Escape"){
+      results.style.display = "none"; q.blur();
+    }
+  });
+
+  window.addEventListener("resize", () => fitView());
+
+  // Initial render.
+  render();
+})();
+</script>
+</body>
+</html>

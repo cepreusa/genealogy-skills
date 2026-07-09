@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><!--__TITLE__--></title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #23201c; --muted: #6b6459;
+    --line: #e4e0d8; --accent: #8b5cf6; --accent2: #d97706;
+    --male: #3b82f6; --female: #ec4899; --warn: #dc2626; --ok: #16a34a;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1816; --panel: #24211d; --ink: #ece7de; --muted: #a49b8c;
+      --line: #38342d; --accent: #a78bfa; --accent2: #f59e0b;
+      --male: #60a5fa; --female: #f472b6; --warn: #f87171; --ok: #4ade80;
+      --shadow: 0 1px 3px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+                 Arial, sans-serif;
+    line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  header.top {
+    padding: 40px 24px 28px; max-width: 1100px; margin: 0 auto;
+  }
+  header.top h1 { margin: 0 0 6px; font-size: 1.9rem; letter-spacing: -.02em; }
+  header.top .file { color: var(--muted); font-size: .95rem; }
+  main { max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+  section { margin: 34px 0; }
+  section > h2 {
+    font-size: 1.25rem; margin: 0 0 16px; display: flex; align-items: baseline;
+    gap: 10px;
+  }
+  section > h2 .hint { font-size: .8rem; color: var(--muted); font-weight: 400; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px; box-shadow: var(--shadow);
+  }
+  .grid { display: grid; gap: 16px; }
+  .cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .card .num { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; }
+  .card .lbl { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+  .two { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+  canvas { max-width: 100%; }
+  .chart-box { position: relative; min-height: 220px; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem;
+       text-transform: uppercase; letter-spacing: .03em; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .fallback { margin-top: 14px; }
+  details.fallback > summary {
+    cursor: pointer; color: var(--muted); font-size: .82rem; user-select: none;
+  }
+  .cloud { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
+           justify-content: center; padding: 8px 4px; }
+  .cloud span { line-height: 1.1; transition: color .15s; white-space: nowrap; }
+  .cloud span b { font-weight: 700; }
+  .heat { display: grid; grid-template-columns: 34px repeat(31, 1fr); gap: 2px;
+          font-size: .62rem; overflow-x: auto; }
+  .heat .cell { aspect-ratio: 1/1; border-radius: 3px; min-width: 12px; }
+  .heat .lbl { color: var(--muted); display: flex; align-items: center;
+               justify-content: flex-end; padding-right: 4px; }
+  .heat .col { color: var(--muted); text-align: center; }
+  .legend { display: flex; align-items: center; gap: 8px; color: var(--muted);
+            font-size: .78rem; margin-top: 10px; }
+  .legend .sw { width: 16px; height: 12px; border-radius: 3px; }
+  .timeline-ctl { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .timeline-ctl button {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 999px; padding: 5px 14px; cursor: pointer; font-size: .82rem;
+  }
+  .timeline-ctl button.active { background: var(--accent); color: #fff;
+                                border-color: var(--accent); }
+  .tl { position: relative; max-height: 460px; overflow-y: auto;
+        padding-left: 14px; border-left: 2px solid var(--line); }
+  .tl .row { display: grid; grid-template-columns: 56px 14px 1fr;
+             gap: 8px; align-items: start; padding: 3px 0; font-size: .88rem; }
+  .tl .yr { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tl .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px;
+             margin-left: -19px; border: 2px solid var(--panel); }
+  .tl .who b { font-weight: 600; }
+  .tl .pl { color: var(--muted); font-size: .82rem; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px;
+           font-size: .78rem; font-weight: 600; }
+  .badge.warn { background: color-mix(in srgb, var(--warn) 15%, transparent);
+                color: var(--warn); }
+  .badge.ok { background: color-mix(in srgb, var(--ok) 15%, transparent);
+              color: var(--ok); }
+  .q-grid { grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); }
+  ul.anom { margin: 12px 0 0; padding-left: 20px; font-size: .86rem;
+            color: var(--muted); max-height: 240px; overflow-y: auto; }
+  ul.anom li { margin: 3px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem;
+           padding: 30px 0 10px; }
+  .empty { color: var(--muted); font-size: .88rem; font-style: italic; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1 id="title">Родословная</h1>
+  <div class="file" id="subtitle"></div>
+</header>
+<main>
+  <!-- 1. Overview -->
+  <section id="s-overview">
+    <div class="grid cards" id="cards"></div>
+  </section>
+
+  <!-- 2. Sex -->
+  <section id="s-sex">
+    <h2>Пропорция полов <span class="hint">мужчины / женщины и по поколениям</span></h2>
+    <div class="grid two">
+      <div class="panel"><div class="chart-box"><canvas id="sexDonut"></canvas></div>
+        <div id="sexDonutFallback" class="fallback"></div></div>
+      <div class="panel"><div class="chart-box"><canvas id="sexDecade"></canvas></div>
+        <div id="sexDecadeFallback" class="fallback"></div></div>
+    </div>
+  </section>
+
+  <!-- 3. Name clouds -->
+  <section id="s-clouds">
+    <h2>Облака имён <span class="hint">размер = частота</span></h2>
+    <div class="grid two">
+      <div class="panel"><h3 style="margin:0 0 10px;font-size:1rem">Фамилии</h3>
+        <div class="cloud" id="cloudSurnames"></div></div>
+      <div class="panel"><h3 style="margin:0 0 10px;font-size:1rem">Имена</h3>
+        <div class="cloud" id="cloudGiven"></div></div>
+    </div>
+  </section>
+
+  <!-- 4. Name trends -->
+  <section id="s-trends">
+    <h2>Мода на имена по декадам <span class="hint">топ-3 имени каждого десятилетия</span></h2>
+    <div class="panel"><div id="trends"></div></div>
+  </section>
+
+  <!-- 5. Births by decade -->
+  <section id="s-births">
+    <h2>Рождения по десятилетиям</h2>
+    <div class="panel"><div class="chart-box"><canvas id="births"></canvas></div>
+      <div id="birthsFallback" class="fallback"></div></div>
+  </section>
+
+  <!-- 6. Top surnames -->
+  <section id="s-surnames">
+    <h2>Топ фамилий</h2>
+    <div class="panel"><div class="chart-box"><canvas id="surnames"></canvas></div>
+      <div id="surnamesFallback" class="fallback"></div></div>
+  </section>
+
+  <!-- 7. Birthday heatmap -->
+  <section id="s-heat">
+    <h2>Календарь дней рождения <span class="hint">месяц × день</span></h2>
+    <div class="panel"><div class="heat" id="heat"></div>
+      <div class="legend"><span>реже</span>
+        <span class="sw" style="background:#e6e0f5"></span>
+        <span class="sw" style="background:#b9a5ec"></span>
+        <span class="sw" style="background:#8b5cf6"></span>
+        <span class="sw" style="background:#5b21b6"></span>
+        <span>чаще</span></div></div>
+  </section>
+
+  <!-- 8. Longevity -->
+  <section id="s-longevity">
+    <h2>Долгожители <span class="hint">по продолжительности жизни</span></h2>
+    <div class="panel"><div id="longevity"></div></div>
+  </section>
+
+  <!-- 9. Biggest families -->
+  <section id="s-families">
+    <h2>Самые большие семьи <span class="hint">по числу детей</span></h2>
+    <div class="panel"><div id="families"></div></div>
+  </section>
+
+  <!-- 10. Places -->
+  <section id="s-places">
+    <h2>Топ мест</h2>
+    <div class="panel"><div class="chart-box"><canvas id="places"></canvas></div>
+      <div id="placesFallback" class="fallback"></div></div>
+  </section>
+
+  <!-- 11. Timeline -->
+  <section id="s-timeline">
+    <h2>Лента событий <span class="hint">рождения, браки, смерти</span></h2>
+    <div class="panel">
+      <div class="timeline-ctl" id="tlCtl"></div>
+      <div class="tl" id="tl"></div>
+    </div>
+  </section>
+
+  <!-- 12. Data quality -->
+  <section id="s-quality">
+    <h2>Проверка качества данных <span class="hint">для дальнейшего исследования</span></h2>
+    <div class="panel">
+      <div class="grid q-grid" id="qCards"></div>
+      <div id="qSources" style="margin-top:18px"></div>
+      <div id="qAnomalies" style="margin-top:18px"></div>
+    </div>
+  </section>
+</main>
+<footer>Сгенерировано скиллом <b>gedcom-report</b> · без внешних зависимостей ·
+  графики Chart.js подгружаются из CDN, при отсутствии сети данные показаны таблицами</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+const DATA = /*__DATA__*/null;
+const hasChart = typeof Chart !== "undefined";
+const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const esc = s => String(s).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---- header ----
+document.getElementById("title").textContent = "Родословная";
+document.getElementById("subtitle").textContent =
+  `${DATA.meta.file} · GEDCOM ${DATA.meta.gedcom_version||"?"} · ` +
+  `${DATA.meta.charset||"?"} · ${DATA.meta.language||""}`;
+
+// ---- 1. overview cards ----
+(function(){
+  const o = DATA.overview, span =
+    (o.year_min!=null ? `${o.year_min}–${o.year_max}` : "—");
+  const cards = [
+    ["Людей", o.people], ["Семей", o.families],
+    ["Мужчин", o.male], ["Женщин", o.female],
+    ["Годы рождения", span], ["Поколений", o.generations],
+    ["Средний возраст", o.avg_lifespan!=null?o.avg_lifespan+" лет":"—"],
+    ["Детей на семью", o.avg_children!=null?o.avg_children:"—"],
+    ["Уникальных фамилий", o.distinct_surnames],
+  ];
+  document.getElementById("cards").innerHTML = cards.map(([l,v]) =>
+    `<div class="card"><div class="num">${esc(v)}</div><div class="lbl">${l}</div></div>`
+  ).join("");
+})();
+
+// ---- table helper ----
+function tbl(headers, rows, aligns){
+  const th = headers.map((h,i)=>`<th class="${aligns&&aligns[i]==='n'?'n':''}">${h}</th>`).join("");
+  const tr = rows.map(r=>"<tr>"+r.map((c,i)=>
+    `<td class="${aligns&&aligns[i]==='n'?'n':''}">${c}</td>`).join("")+"</tr>").join("");
+  return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
+}
+function fallbackTable(id, headers, rows, aligns, openLabel){
+  document.getElementById(id).innerHTML =
+    `<details class="fallback"><summary>${openLabel||"Показать данные таблицей"}</summary>`+
+    tbl(headers, rows, aligns)+`</details>`;
+}
+
+// ---- 2. sex ----
+(function(){
+  const s = DATA.sex;
+  fallbackTable("sexDonutFallback", ["Пол","Кол-во"],
+    [["Мужчины",s.M],["Женщины",s.F]].concat(s.U?[["Не указан",s.U]]:[]),
+    [null,"n"]);
+  const dec = DATA.sex_by_decade;
+  fallbackTable("sexDecadeFallback", ["Декада","М","Ж"],
+    dec.map(d=>[d.decade+"-е",d.M,d.F]), [null,"n","n"]);
+  if(!hasChart) return;
+  new Chart(document.getElementById("sexDonut"),{
+    type:"doughnut",
+    data:{labels:["Мужчины","Женщины"].concat(s.U?["Не указан"]:[]),
+      datasets:[{data:[s.M,s.F].concat(s.U?[s.U]:[]),
+        backgroundColor:[css("--male"),css("--female"),css("--muted")]}]},
+    options:{plugins:{legend:{position:"bottom",labels:{color:css("--ink")}},
+      title:{display:true,text:"Соотношение полов",color:css("--muted")}}}
+  });
+  new Chart(document.getElementById("sexDecade"),{
+    type:"bar",
+    data:{labels:dec.map(d=>d.decade+"-е"),datasets:[
+      {label:"Мужчины",data:dec.map(d=>d.M),backgroundColor:css("--male")},
+      {label:"Женщины",data:dec.map(d=>d.F),backgroundColor:css("--female")}]},
+    options:{responsive:true,scales:{x:{stacked:true,ticks:{color:css("--muted")}},
+      y:{stacked:true,ticks:{color:css("--muted")}}},
+      plugins:{legend:{labels:{color:css("--ink")}},
+      title:{display:true,text:"Полы по поколениям",color:css("--muted")}}}
+  });
+})();
+
+// ---- 3. clouds ----
+function renderCloud(id, items){
+  const el = document.getElementById(id);
+  if(!items.length){ el.innerHTML='<span class="empty">нет данных</span>'; return; }
+  const max = items[0].count, min = items[items.length-1].count;
+  const lo=13, hi=44;
+  const shuffled = items.slice().sort(()=>Math.random()-0.5);
+  el.innerHTML = shuffled.map(it=>{
+    const t = max===min ? 1 : (it.count-min)/(max-min);
+    const size = (lo + t*(hi-lo)).toFixed(1);
+    const light = 40 + Math.round((1-t)*30);
+    return `<span title="${esc(it.text)}: ${it.count}" `+
+      `style="font-size:${size}px;color:hsl(258 55% ${light}%)">${esc(it.text)}</span>`;
+  }).join("");
+}
+renderCloud("cloudSurnames", DATA.cloud_surnames);
+renderCloud("cloudGiven", DATA.cloud_given);
+
+// ---- 4. name trends ----
+(function(){
+  const t = DATA.name_trends;
+  if(!t.length){ document.getElementById("trends").innerHTML=
+    '<span class="empty">нет данных о датах рождения</span>'; return; }
+  const rows = t.map(d=>[d.decade+"-е",
+    d.names.map(n=>`${esc(n.name)} <span style="color:var(--muted)">(${n.count})</span>`).join(", ")]);
+  document.getElementById("trends").innerHTML = tbl(["Десятилетие","Популярные имена"], rows);
+})();
+
+// ---- 5. births ----
+(function(){
+  const b = DATA.births_by_decade;
+  fallbackTable("birthsFallback",["Декада","Рождений"],
+    b.map(d=>[d.decade+"-е",d.count]),[null,"n"]);
+  if(!hasChart||!b.length) return;
+  new Chart(document.getElementById("births"),{
+    type:"bar",
+    data:{labels:b.map(d=>d.decade+"-е"),datasets:[{label:"Рождений",
+      data:b.map(d=>d.count),backgroundColor:css("--accent")}]},
+    options:{plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:css("--muted")}},y:{ticks:{color:css("--muted")}}}}
+  });
+})();
+
+// ---- 6. surnames ----
+(function(){
+  const s = DATA.top_surnames;
+  fallbackTable("surnamesFallback",["Фамилия","Кол-во"],
+    s.map(x=>[esc(x.surname),x.count]),[null,"n"]);
+  if(!hasChart||!s.length) return;
+  new Chart(document.getElementById("surnames"),{
+    type:"bar",
+    data:{labels:s.map(x=>x.surname),datasets:[{label:"Носителей",
+      data:s.map(x=>x.count),backgroundColor:css("--accent2")}]},
+    options:{indexAxis:"y",plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:css("--muted")}},y:{ticks:{color:css("--muted")}}}}
+  });
+})();
+
+// ---- 7. heatmap ----
+(function(){
+  const el = document.getElementById("heat");
+  const grid = {}; let max=0;
+  DATA.heatmap.forEach(h=>{ grid[h.m+"-"+h.d]=h.c; if(h.c>max)max=h.c; });
+  const months=["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+  function color(c){
+    if(!c) return "var(--line)";
+    const t = max<=1?1:(c-1)/(max-1);
+    const light = 88 - t*58;
+    return `hsl(258 60% ${light}%)`;
+  }
+  let html = '<div class="lbl"></div>';
+  for(let d=1; d<=31; d++) html += `<div class="col">${d}</div>`;
+  for(let m=1; m<=12; m++){
+    html += `<div class="lbl">${months[m]}</div>`;
+    for(let d=1; d<=31; d++){
+      const c = grid[m+"-"+d]||0;
+      html += `<div class="cell" title="${d} ${months[m]}: ${c}" `+
+              `style="background:${color(c)}"></div>`;
+    }
+  }
+  el.innerHTML = html;
+})();
+
+// ---- 8. longevity ----
+(function(){
+  const l = DATA.longevity;
+  if(!l.length){ document.getElementById("longevity").innerHTML=
+    '<span class="empty">нет пар дат рождения и смерти</span>'; return; }
+  document.getElementById("longevity").innerHTML = tbl(
+    ["#","Имя","Годы","Возраст"],
+    l.map((x,i)=>[i+1,esc(x.name),`${x.birth}–${x.death}`,x.age]),
+    ["n",null,null,"n"]);
+})();
+
+// ---- 9. families ----
+(function(){
+  const f = DATA.biggest_families;
+  if(!f.length){ document.getElementById("families").innerHTML=
+    '<span class="empty">нет семей с детьми</span>'; return; }
+  document.getElementById("families").innerHTML = tbl(
+    ["#","Родители","Детей"],
+    f.map((x,i)=>[i+1,esc(x.family),x.children]),["n",null,"n"]);
+})();
+
+// ---- 10. places ----
+(function(){
+  const p = DATA.places;
+  fallbackTable("placesFallback",["Место","Событий"],
+    p.map(x=>[esc(x.place),x.count]),[null,"n"]);
+  if(!hasChart||!p.length) return;
+  new Chart(document.getElementById("places"),{
+    type:"bar",
+    data:{labels:p.map(x=>x.place),datasets:[{label:"Событий",
+      data:p.map(x=>x.count),backgroundColor:css("--accent")}]},
+    options:{indexAxis:"y",plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:css("--muted")}},y:{ticks:{color:css("--muted")}}}}
+  });
+})();
+
+// ---- 11. timeline ----
+(function(){
+  const ev = DATA.timeline;
+  const colors={birth:css("--ok"),marriage:css("--accent"),death:css("--muted")};
+  const labels={all:"Все",birth:"Рождения",marriage:"Браки",death:"Смерти"};
+  const tl = document.getElementById("tl");
+  function draw(filter){
+    const rows = ev.filter(e=>filter==="all"||e.type===filter);
+    if(!rows.length){ tl.innerHTML='<span class="empty">нет событий</span>'; return; }
+    tl.innerHTML = rows.map(e=>
+      `<div class="row"><div class="yr">${e.year}</div>`+
+      `<div class="dot" style="background:${colors[e.type]}"></div>`+
+      `<div><span class="who">${esc(e.who)}</span>`+
+      (e.place?` <span class="pl">· ${esc(e.place)}</span>`:"")+`</div></div>`
+    ).join("");
+  }
+  const ctl = document.getElementById("tlCtl");
+  ["all","birth","marriage","death"].forEach((f,i)=>{
+    const btn=document.createElement("button");
+    btn.textContent=labels[f]; if(i===0)btn.classList.add("active");
+    btn.onclick=()=>{ ctl.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active"); draw(f); };
+    ctl.appendChild(btn);
+  });
+  draw("all");
+})();
+
+// ---- 12. quality ----
+(function(){
+  const q = DATA.quality, o = DATA.overview;
+  const cards=[
+    ["Без даты рождения",q.no_birth],["Без даты смерти",q.no_death],
+    ["Без родителей",q.no_parents],["Одиночные записи",q.isolated],
+    ["Всего источников",q.sources_total],
+    ["Возможных аномалий",q.anomaly_total],
+  ];
+  document.getElementById("qCards").innerHTML = cards.map(([l,v])=>
+    `<div class="card"><div class="num">${v}</div><div class="lbl">${l}</div></div>`).join("");
+  if(q.quay && q.quay.length){
+    document.getElementById("qSources").innerHTML =
+      "<h3 style='margin:0 0 8px;font-size:1rem'>Уровни доказательности источников</h3>"+
+      tbl(["Уровень","Кол-во"], q.quay.map(x=>[x.level,x.count]),[null,"n"]);
+  }
+  const an = document.getElementById("qAnomalies");
+  if(q.anomaly_total){
+    an.innerHTML = `<h3 style="margin:0 0 8px;font-size:1rem">`+
+      `Возможные аномалии дат <span class="badge warn">${q.anomaly_total}</span></h3>`+
+      `<p style="color:var(--muted);font-size:.82rem;margin:0">Это подсказки для проверки, а не ошибки — данные могли быть внесены приблизительно.</p>`+
+      "<ul class='anom'>"+q.anomalies.map(a=>`<li>${esc(a)}</li>`).join("")+"</ul>";
+  } else {
+    an.innerHTML = `<span class="badge ok">Явных аномалий дат не найдено</span>`;
+  }
+})();
+</script>
+</body>
+</html>

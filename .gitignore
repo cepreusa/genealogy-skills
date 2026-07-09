@@ -1,0 +1,34 @@
+# Node / opencode plugin deps
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# GEDCOM working files & generated output (keep examples/demo.ged, ignore the rest)
+*.ged
+!examples/demo.ged
+*.bak-*.ged
+*.report.html
+*.tree.html
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Never commit real family data
+Family-History/
+private/
+
+# Safety net: if install.sh is ever run inside this checkout by mistake, don't
+# track the skills it drops into these agent dotfolders.
+/.claude/
+/.codex/
+/.opencode/
+/.agents/
