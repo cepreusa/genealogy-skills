@@ -44,10 +44,8 @@ a visual tree, or research help.
 3. Go to **Customize → Skills → “+” → Upload a skill** and upload each `.zip`.
 
 Then start a chat and ask about your family tree. (Just `gedcom-reader.zip` is
-enough to begin.) To update a skill later, upload the newer `.zip` — if Claude
-keeps showing the old one, delete it from the Skills list first, then re-upload.
-Skills you enable here also show up in the Claude for Excel / Word / PowerPoint /
-Outlook add-ins.
+enough to begin.) Skills you enable here also show up in the Claude for
+Excel / Word / PowerPoint / Outlook add-ins.
 
 ### Claude Code · Codex · opencode · other CLI agents
 
@@ -69,6 +67,34 @@ directory it scans.
 agent, native `gedcom_*` write tools, and an `opencode.json` pre-wired for the
 Playwright browser MCP (see below). An existing `opencode.json` is left
 untouched.
+
+### Updating an existing install
+
+New version out? Update the copy you already installed:
+
+- **Claude Desktop / claude.ai** — download the newer `.zip`(s) from
+  [`download-skills/`](download-skills/) and re-upload them under
+  **Customize → Skills → “+” → Upload a skill**. If Claude keeps showing the old
+  version, delete the skill from the Skills list first, then upload again.
+
+- **Claude Code · Codex · opencode · other CLI agents** — refresh this repo, then
+  re-run the same install command from your project root and restart the agent:
+
+  ```bash
+  git pull                      # or re-download the repo
+  ./install.sh opencode         # same target you used before (+ project-dir if any)
+  ```
+
+  Re-running **overwrites** the installed `skills/*` folders in place (they're
+  copies, so this is safe) — you always get the latest scripts.
+
+- **opencode, one caveat** — to avoid clobbering your customizations, the
+  installer **does not overwrite** an existing `opencode.json`, `package.json`,
+  or a `genealogist.md` you've edited; the native `gedcom_*` tools *are* always
+  refreshed. If a new version changes the agent, config, or plugin deps, the
+  installer prints `= … left untouched` — compare your file with the matching one
+  under [`opencode-extras/`](opencode-extras/) and merge the changes by hand (or
+  rename yours and re-run to get a fresh copy).
 
 ## Try it
 

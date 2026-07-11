@@ -14,6 +14,9 @@ the top level — the layout the Skills uploader expects).
 `gedcom-tree`, and `genealogy-research` for dashboards, the interactive viewer,
 and research guidance.
 
+**Already installed?** To update, re-upload the newer ZIP(s) here — see
+*Updating an existing install* in the [main README](../README.md#updating-an-existing-install).
+
 ## Don't edit these by hand
 
 They are build artifacts of the skills in [`../skills/`](../skills/). To update
