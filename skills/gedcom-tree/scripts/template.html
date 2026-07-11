@@ -48,36 +48,46 @@
     background:var(--panel);border:1px solid var(--line);border-radius:10px;
     padding:8px 12px;z-index:10;font-size:12px}
   #legend span{display:inline-flex;align-items:center;gap:6px}
-  #legend i{width:14px;height:14px;border-radius:3px;border:1px solid}
-  .sw-m{background:var(--male);border-color:var(--male-b)}
-  .sw-f{background:var(--female);border-color:var(--female-b)}
-  .sw-u{background:var(--unknown);border-color:var(--unknown-b)}
-  .sw-c{background:var(--focus);border-color:var(--focus-b)}
+  #legend i{width:8px;height:16px;border-radius:3px}
+  .sw-m{background:var(--male-b)}
+  .sw-f{background:var(--female-b)}
+  .sw-u{background:var(--unknown-b)}
+  .sw-c{background:var(--focus-b)}
   #stage{position:absolute;inset:52px 0 0 0;cursor:grab}
   #stage.drag{cursor:grabbing}
   svg{width:100%;height:100%;display:block;touch-action:none}
   .link{fill:none;stroke:var(--line);stroke-width:1.6}
+  /* Cards: soft card + colored left accent stripe by sex. */
   .card{cursor:pointer}
-  .card:hover rect{filter:brightness(0.97)}
-  .m rect{fill:var(--male);stroke:var(--male-b)}
-  .f rect{fill:var(--female);stroke:var(--female-b)}
-  .u rect{fill:var(--unknown);stroke:var(--unknown-b)}
-  .card rect{stroke-width:1.5}
-  .focus rect{fill:var(--focus);stroke:var(--focus-b);stroke-width:2.5}
-  .card .nm{font-size:13px;font-weight:600;fill:var(--ink)}
-  .card .yr{font-size:11px;fill:var(--muted)}
+  .card .bg{fill:var(--panel);stroke:var(--line);stroke-width:1.2}
+  .card .stripe{stroke:none}
+  .m .stripe{fill:var(--male-b)}
+  .f .stripe{fill:var(--female-b)}
+  .u .stripe{fill:var(--unknown-b)}
+  .card:hover .bg{fill:#fff}
+  .card:hover .halo{opacity:1}
+  .halo{fill:none;stroke:var(--focus-b);stroke-width:2;opacity:0;
+    transition:opacity .12s}
+  .focus .bg{stroke:var(--focus-b);stroke-width:2.2}
+  .focus .stripe{fill:var(--focus-b)}
+  .card .nm{font-size:12.5px;font-weight:600;fill:var(--ink)}
+  .focus .nm{font-weight:700}
+  .card .yr{font-size:10.5px;fill:var(--muted)}
   #empty{position:absolute;inset:52px 0 0 0;display:none;align-items:center;
     justify-content:center;color:var(--muted);font-size:15px;text-align:center}
   #tip{position:fixed;pointer-events:none;background:#2b2620;color:#fff;
     font-size:12px;padding:6px 9px;border-radius:6px;opacity:0;z-index:30;
     max-width:260px;transition:opacity .1s;line-height:1.45}
   #tip b{color:#f4c95d}
-  /* Info badge on each card */
-  .info{cursor:pointer}
-  .info circle{fill:#fffdf8;stroke:currentColor;stroke-width:1.3;opacity:.85}
-  .info text{font-size:12px;font-weight:700;fill:currentColor;
-    font-style:italic;pointer-events:none}
-  .card:hover .info circle{opacity:1;fill:#fff}
+  /* Info badge: sits in a reserved right gutter, so it never covers the name.
+     Hidden until the card is hovered; always shown on the focus card. */
+  .info{cursor:pointer;opacity:0;transition:opacity .12s}
+  .card:hover .info,.focus .info{opacity:1}
+  .info circle{fill:#fff;stroke:var(--muted);stroke-width:1.2}
+  .info:hover circle{stroke:var(--focus-b);fill:#fffaf0}
+  .info text{font-size:11px;font-weight:700;fill:var(--muted);
+    pointer-events:none}
+  .info:hover text{fill:var(--focus-b)}
   /* Detail side panel */
   #panel{position:fixed;top:52px;right:0;bottom:0;width:380px;max-width:92vw;
     background:var(--panel);border-left:1px solid var(--line);z-index:40;
@@ -99,13 +109,24 @@
   #pbody .k{color:var(--muted)}
   #pbody a{color:#3a6ea5;word-break:break-word}
   #pbody .note{background:#faf6ec;border:1px solid #ece3d1;border-radius:8px;
-    padding:8px 10px;margin:6px 0;white-space:pre-wrap;word-break:break-word}
-  #pbody .chip{display:inline-block;font-size:11px;font-weight:700;
-    padding:1px 7px;border-radius:10px;margin-right:6px;vertical-align:1px}
+    padding:10px 12px;margin:7px 0;word-break:break-word}
+  #pbody .note p{margin:0 0 7px}
+  #pbody .note p:last-child{margin-bottom:0}
+  #pbody .note .lead{font-weight:600;color:var(--ink)}
+  #pbody .note .warn{display:block;margin:7px 0 0;padding:6px 9px;
+    background:#fbe7e2;border-left:3px solid #c9744f;border-radius:5px;
+    color:#8a3f22;font-size:12.5px}
+  #pbody .note .cite{display:block;margin:7px 0 0;padding-top:6px;
+    border-top:1px dashed #e3d8c2;color:var(--muted);font-size:12px}
+  #pbody .note .cite b{color:var(--ink);font-weight:600}
+  #pbody .chip{display:inline-block;font-size:10.5px;font-weight:700;
+    letter-spacing:.02em;padding:2px 8px;border-radius:10px;margin:0 6px 6px 0;
+    text-transform:uppercase}
   .st-proven{background:#d9efd6;color:#2f6b31}
   .st-probable{background:#fdf0cf;color:#8a6d1a}
   .st-possible{background:#fde4cf;color:#9a5a1e}
   .st-unproven{background:#eee;color:#777}
+  .st-version{background:#e6e3f2;color:#544a86}
   #pbody .src{border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:7px 0}
   #pbody .src .ti{font-weight:600}
   #pbody .rel{display:inline-block;background:#fff;border:1px solid var(--line);
@@ -200,7 +221,10 @@ const DATA = /*__DATA__*/null;
   let genUp = 3, genDown = 2;
 
   // Layout geometry.
-  const CARD_W = 152, CARD_H = 46, H_GAP = 24, V_GAP = 92, SP_GAP = 12;
+  const CARD_W = 160, CARD_H = 56, H_GAP = 24, V_GAP = 98, SP_GAP = 12;
+  const STRIPE = 6;              // width of the coloured sex accent stripe
+  const GUTTER = 22;             // reserved space on the right for the ⓘ badge
+  const PAD_L = STRIPE + 10;     // left text inset (after the stripe)
 
   const norm = s => String(s || "").toLowerCase();
   function years(p){
@@ -214,6 +238,28 @@ const DATA = /*__DATA__*/null;
   function trunc(str, n){
     str = str || "";
     return str.length > n ? str.slice(0, n - 1) + "…" : str;
+  }
+  // Measure text against a pixel budget with a hidden SVG probe and trim with an
+  // ellipsis so left-aligned names never spill into the badge gutter.
+  const _probe = (function(){
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("class", "nm");
+    t.setAttribute("visibility", "hidden");
+    return t;
+  })();
+  function fitText(str, maxW, size, bold){
+    str = str || "";
+    if(!_probe.isConnected) root.appendChild(_probe);
+    _probe.style.fontWeight = bold ? "600" : "400";
+    _probe.textContent = str;
+    if(_probe.getComputedTextLength() <= maxW) return str;
+    let lo = 0, hi = str.length;
+    while(lo < hi){
+      const mid = (lo + hi + 1) >> 1;
+      _probe.textContent = str.slice(0, mid) + "…";
+      if(_probe.getComputedTextLength() <= maxW) lo = mid; else hi = mid - 1;
+    }
+    return str.slice(0, lo) + "…";
   }
 
   function parentsFam(id){
@@ -412,23 +458,41 @@ const DATA = /*__DATA__*/null;
       g.setAttribute("class", "card " + cls(p) + (isFocus ? " focus" : ""));
       g.setAttribute("transform", "translate(" + n.x + "," + n.y + ")");
 
-      const rect = document.createElementNS(NS, "rect");
-      rect.setAttribute("width", CARD_W);
-      rect.setAttribute("height", CARD_H);
-      rect.setAttribute("rx", 9); rect.setAttribute("ry", 9);
-      g.appendChild(rect);
+      // Card background (soft), a coloured left accent stripe, and a hover halo.
+      const bg = document.createElementNS(NS, "rect");
+      bg.setAttribute("class", "bg");
+      bg.setAttribute("width", CARD_W); bg.setAttribute("height", CARD_H);
+      bg.setAttribute("rx", 10); bg.setAttribute("ry", 10);
+      g.appendChild(bg);
 
+      const stripe = document.createElementNS(NS, "path");
+      stripe.setAttribute("class", "stripe");
+      // Rounded-left stripe hugging the card's left edge.
+      const r = 10;
+      stripe.setAttribute("d",
+        "M" + r + ",0 H" + STRIPE + " V" + CARD_H + " H" + r +
+        " a" + r + "," + r + " 0 0 1 " + (-r) + "," + (-r) +
+        " V" + r + " a" + r + "," + r + " 0 0 1 " + r + "," + (-r) + " Z");
+      g.appendChild(stripe);
+
+      const halo = document.createElementNS(NS, "rect");
+      halo.setAttribute("class", "halo");
+      halo.setAttribute("x", -2); halo.setAttribute("y", -2);
+      halo.setAttribute("width", CARD_W + 4); halo.setAttribute("height", CARD_H + 4);
+      halo.setAttribute("rx", 12); halo.setAttribute("ry", 12);
+      g.appendChild(halo);
+
+      // Name (left-aligned, clipped before the badge gutter) and life years.
+      const textW = CARD_W - PAD_L - GUTTER;
       const nm = document.createElementNS(NS, "text");
       nm.setAttribute("class", "nm");
-      nm.setAttribute("x", CARD_W / 2); nm.setAttribute("y", 20);
-      nm.setAttribute("text-anchor", "middle");
-      nm.textContent = trunc(p.name, 21);
+      nm.setAttribute("x", PAD_L); nm.setAttribute("y", 24);
+      nm.textContent = fitText(p.name, textW, 12.5, true);
       g.appendChild(nm);
 
       const yr = document.createElementNS(NS, "text");
       yr.setAttribute("class", "yr");
-      yr.setAttribute("x", CARD_W / 2); yr.setAttribute("y", 37);
-      yr.setAttribute("text-anchor", "middle");
+      yr.setAttribute("x", PAD_L); yr.setAttribute("y", 40);
       yr.textContent = years(p);
       g.appendChild(yr);
 
@@ -437,17 +501,18 @@ const DATA = /*__DATA__*/null;
       g.addEventListener("mousemove", moveTip);
       g.addEventListener("mouseleave", hideTip);
 
-      // Info badge (opens the detail panel without re-centring).
+      // Info badge in the reserved right gutter (opens the detail panel).
       if(hasDetails(n.id)){
         const info = document.createElementNS(NS, "g");
         info.setAttribute("class", "info");
-        info.setAttribute("transform", "translate(" + (CARD_W - 15) + ",15)");
+        info.setAttribute("transform",
+          "translate(" + (CARD_W - GUTTER / 2 - 2) + "," + (CARD_H / 2) + ")");
         const ic = document.createElementNS(NS, "circle");
-        ic.setAttribute("r", 9);
+        ic.setAttribute("r", 8.5);
         info.appendChild(ic);
         const it = document.createElementNS(NS, "text");
         it.setAttribute("text-anchor", "middle");
-        it.setAttribute("y", 4);
+        it.setAttribute("y", 3.5);
         it.textContent = "i";
         info.appendChild(it);
         info.addEventListener("click", e => {
@@ -533,13 +598,85 @@ const DATA = /*__DATA__*/null;
     a.href = safe; a.target = "_blank"; a.rel = "noopener noreferrer";
     return a;
   }
+  // Map a note's status vocabulary to a chip {label, cls}. Recognises the
+  // English tags plus the Russian free-text variants used in real research
+  // notes ("версия", "гипотеза", "реконструкция", …).
+  function statusOf(note){
+    const t = note || "";
+    let m = /\b(PROVEN|PROBABLE-STRONG|PROBABLE|POSSIBLE|UNPROVEN)\b/i.exec(t);
+    if(m){
+      const s = m[1].toUpperCase();
+      const base = s.startsWith("PROVEN") ? "proven"
+        : s.startsWith("PROBABLE") ? "probable"
+        : s.startsWith("POSSIBLE") ? "possible" : "unproven";
+      return { label: s.replace("-", " "), cls: "st-" + base };
+    }
+    if(/\bнегативн\w*\s+результат/i.test(t))
+      return { label: "негативный результат", cls: "st-unproven" };
+    if(/\b(верси\w*|гипотез\w*|реконструкци\w*|предположительн\w*)\b/i.test(t))
+      return { label: "версия", cls: "st-version" };
+    return null;
+  }
   function statusChip(note){
-    const m = /\b(PROVEN|PROBABLE|POSSIBLE|UNPROVEN)\b/i.exec(note || "");
-    if(!m) return null;
-    const s = m[1].toUpperCase();
-    return el("span", "chip st-" + s.toLowerCase(), s);
+    const s = statusOf(note);
+    return s ? el("span", "chip " + s.cls, s.label) : null;
   }
   function isChangelog(note){ return /^\s*\[CHANGELOG\]/.test(note || ""); }
+
+  // Turn one raw note string into readable DOM: unwrap MyHeritage <p> HTML,
+  // drop the trailing "Статус: …" (shown as a chip instead), pull "Источник:"
+  // into a citation footer and "⚠️ …" into a callout, and split the rest into
+  // paragraphs. All text goes in via textContent — never innerHTML.
+  function renderNote(raw){
+    const box = el("div", "note");
+    const chip = statusChip(raw);
+    if(chip) box.appendChild(chip);
+
+    let text = String(raw || "");
+    // Unwrap embedded HTML notes: paragraph breaks first, then strip any tags.
+    const hadHtml = /<\/?(p|br|div)\b/i.test(text);
+    text = text.replace(/<\s*br\s*\/?>/gi, "\n")
+               .replace(/<\/\s*p\s*>/gi, "\n\n")
+               .replace(/<[^>]+>/g, "")
+               .replace(/&nbsp;/gi, " ")
+               .replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
+
+    // Peel off a trailing "Статус: …" sentence (already surfaced as the chip).
+    text = text.replace(/(^|[.\s])Статус[^.]*\.?\s*$/i, "$1").trim();
+
+    // Split off a citation tail ("Источник: …", optionally "Скан: …").
+    let cite = "";
+    const cm = /(?:^|[\s.])((?:Источник|Скан)\s*:\s.*)$/is.exec(text);
+    if(cm){ cite = cm[1].trim(); text = text.slice(0, cm.index).trim(); }
+
+    // Pull out ⚠️ warning sentences into their own callouts.
+    const warns = [];
+    text = text.replace(/⚠️\s*([^⚠]*?)(?=(?:\s[А-ЯA-Z][а-яa-z]{3,}\s*:)|$)/gu,
+      (all, w) => { const s = w.trim(); if(s) warns.push(s); return " "; }).trim();
+
+    // Body paragraphs: split on blank lines (from HTML) or keep as one block.
+    const paras = (hadHtml ? text.split(/\n{2,}/) : [text])
+      .map(s => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+    for(const para of paras) box.appendChild(el("p", null, para));
+
+    for(const w of warns){
+      const wn = el("span", "warn");
+      wn.appendChild(document.createTextNode("⚠️ " + w));
+      box.appendChild(wn);
+    }
+    if(cite){
+      const c = el("span", "cite");
+      const cl = /^(Источник|Скан)\s*:/i.exec(cite);
+      if(cl){
+        c.appendChild(el("b", null, cl[0]));
+        c.appendChild(document.createTextNode(cite.slice(cl[0].length)));
+      } else {
+        c.appendChild(document.createTextNode(cite));
+      }
+      box.appendChild(c);
+    }
+    return box;
+  }
 
   function section(title){ const h = el("h3", null, title); pbody.appendChild(h); return h; }
 
@@ -604,13 +741,7 @@ const DATA = /*__DATA__*/null;
       const logs = d.notes.filter(isChangelog);
       if(real.length){
         section("Заметки");
-        for(const n of real){
-          const box = el("div", "note");
-          const chip = statusChip(n);
-          if(chip) box.appendChild(chip);
-          box.appendChild(document.createTextNode(n));
-          pbody.appendChild(box);
-        }
+        for(const n of real) pbody.appendChild(renderNote(n));
       }
       if(logs.length){
         const det = document.createElement("details");
