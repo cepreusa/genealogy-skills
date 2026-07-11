@@ -6,8 +6,10 @@ description: >
   дерево, древо, посмотреть дерево, интерактивное дерево, схема родословной,
   визуальное дерево, как в MyHeritage. Produces one offline HTML file that
   centres on a person, shows ancestors above and descendants below, and lets
-  you click any card to re-centre, pan, zoom and search by name. Handles
-  UTF-8/Cyrillic and MyHeritage exports. Pure stdlib Python via bash — no
+  you click any card to re-centre, pan, zoom and search by name. Each card has
+  an ⓘ badge that opens a side panel with the person's full detail — notes,
+  sources with clickable links, documents/scans, residences and occupations.
+  Handles UTF-8/Cyrillic and MyHeritage exports. Pure stdlib Python via bash — no
   Gramps, no Docker, no dependencies, no CDN.
 license: MIT
 compatibility: >
@@ -43,7 +45,7 @@ Run the bundled generator with `bash` (set `PYTHONIOENCODING=utf-8` so Cyrillic
 is handled correctly):
 
 ```bash
-PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.html] [--focus <id|name>]
+PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.html] [--focus <id|name>] [--private]
 ```
 
 `<skill-dir>` is this skill's own directory wherever it is installed (e.g.
@@ -54,6 +56,9 @@ PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.ht
   An ambiguous name is rejected with the list of matches — show it and ask.
 - With no `--focus`, the viewer opens on the **most-connected** person (the one
   with the largest surrounding family), which is usually a sensible centre.
+- `--private` strips contact details (phone, email, street address) of people
+  with **no recorded death date** (treated as possibly living), so the exported
+  HTML doesn't leak personal contact info. Use it when sharing the file.
 - The script prints a small JSON summary (output path, people, families, the
   chosen focus id/name) — use it to tell the user what was built.
 - It ships its own copy of the parser (`scripts/gedcom.py`) and also falls back
@@ -65,8 +70,9 @@ double-clicking, e.g.:
 
 > Готово — интерактивное дерево сохранено рядом с файлом: `…/tree.tree.html`.
 > Откройте его двойным щелчком. Кликните по любому человеку, чтобы поставить
-> его в центр; тяните мышью, чтобы двигать, колесо — масштаб, сверху — поиск
-> по имени.
+> его в центр; значок ⓘ на карточке открывает панель с подробностями (заметки,
+> источники, ссылки на документы). Тяните мышью, чтобы двигать, колесо —
+> масштаб, сверху — поиск по имени.
 
 ## What the viewer does
 
@@ -84,6 +90,14 @@ double-clicking, e.g.:
 - **Cards** are coloured by sex (blue = male, pink = female, grey = unknown) and
   show the name and life years; hover shows a tooltip with birth place and
   occupation when present.
+- **Detail panel:** each card with extra data shows a small **ⓘ badge**; clicking
+  it opens a side panel with the person's full record — facts (birth/death with
+  cause), occupations, residences, **notes** (with PROVEN/PROBABLE/… status
+  chips, and a foldaway changelog), **sources** (author/title + clickable
+  archive links), **documents & scans** (note-embedded `materials/skany/*.png`
+  paths and URLs become links), and clickable **relatives** to jump around. The
+  panel is keyboard-friendly (Esc closes). Clicking the card itself still
+  re-centres, as before.
 
 ## Offline behaviour
 

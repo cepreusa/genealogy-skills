@@ -24,7 +24,7 @@ UTF-8 / Cyrillic-safe.
 |---|---|
 | **gedcom-reader** | Read a `.ged` and answer questions about people, dates and relationships. Also builds/edits trees — add people, set facts, link spouses/children — with automatic backups. **Start here.** |
 | **gedcom-report** | A 12-section analytics **dashboard**: counts, charts, name cloud, birthday heatmap, timeline and a data-quality check, as one HTML file. |
-| **gedcom-tree** | An **interactive HTML tree viewer** centred on a person: ancestors above, descendants below, click-to-recenter, pan/zoom, name search. |
+| **gedcom-tree** | An **interactive HTML tree viewer** centred on a person: ancestors above, descendants below, click-to-recenter, pan/zoom, name search — plus an **ⓘ detail panel** per card (notes, sources, document/scan links, relatives). |
 | **genealogy-research** | Plan research with the **Genealogical Proof Standard**, keep an Obsidian vault, and **start a tree from nothing** through a short interview. |
 
 You need only **gedcom-reader** to get going; add the others as you want reports,

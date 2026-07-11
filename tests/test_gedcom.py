@@ -149,6 +149,91 @@ class SurnameFallbackTest(unittest.TestCase):
         self.assertEqual(stats["top_surnames"][0]["surname"], "Smith")
 
 
+class PersonDetailTest(unittest.TestCase):
+    """Rich person_full extraction used by the tree viewer's detail panel."""
+
+    def test_extract_links_from_notes(self):
+        mod = _load_gedcom_module()
+        notes = [
+            "See https://archive.org/rec/1 and Скан: materials/skany/doc.png",
+            "Another http://obd-memorial.ru/ ref; skany/award.jpg too",
+        ]
+        links = mod.extract_links(notes)
+        self.assertIn("https://archive.org/rec/1", links["urls"])
+        self.assertIn("http://obd-memorial.ru/", links["urls"])
+        self.assertIn("materials/skany/doc.png", links["scans"])
+        self.assertIn("skany/award.jpg", links["scans"])
+
+    def test_person_full_rich_fields_on_demo(self):
+        mod = _load_gedcom_module()
+        demo = os.path.join(ROOT, "examples", "demo.ged")
+        tree = mod.Tree(demo)
+        ivan = tree.people["@I1@"]
+        d = tree.person_full(ivan)
+        # occupation with place
+        self.assertTrue(any(o["place"] for o in d["occupations"]))
+        # death cause
+        self.assertTrue(d["death"]["cause"])
+        # residence recorded
+        self.assertTrue(d["residences"])
+        # scan link harvested from a note
+        self.assertTrue(any("skany/" in s for s in d["links"]["scans"]))
+        # a @Sxx@ source resolved to author + title
+        resolved = [s for s in d["sources"] if s["author"] and s["title"]]
+        self.assertTrue(resolved, "expected a resolved @S1@ source record")
+        # event carrying a URL
+        self.assertTrue(any(e["url"] for e in d["events"]))
+
+    def test_source_pointer_resolution(self):
+        mod = _load_gedcom_module()
+        demo = os.path.join(ROOT, "examples", "demo.ged")
+        tree = mod.Tree(demo)
+        d = tree.person_full(tree.people["@I1@"])
+        s0 = next(s for s in d["sources"] if s["author"])
+        self.assertIn("архив", s0["author"].lower())
+        self.assertTrue(s0["url"].startswith("http"))
+
+
+class TreePrivateFlagTest(unittest.TestCase):
+    """tree.py --private strips contacts of people with no death date."""
+
+    def _load_tree_module(self):
+        path = os.path.join(ROOT, "skills", "gedcom-tree", "scripts", "tree.py")
+        spec = importlib.util.spec_from_file_location("treemod", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def _write(self, text):
+        d = tempfile.mkdtemp()
+        ged = os.path.join(d, "p.ged")
+        with open(ged, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return ged
+
+    def test_private_hides_living_contacts(self):
+        treemod = self._load_tree_module()
+        import gedcom  # already importable via tree.py's sys.path insert
+        # A living person (no DEAT) with a phone; and a deceased one with a phone.
+        ged = self._write(
+            "0 HEAD\n1 CHAR UTF-8\n1 GEDC\n2 VERS 5.5.1\n"
+            "0 @I1@ INDI\n1 NAME Liv /Ing/\n1 SEX F\n"
+            "1 RESI\n2 PLAC Town\n2 PHON 12345\n2 EMAIL a@b.co\n"
+            "0 @I2@ INDI\n1 NAME Dead /Gone/\n1 SEX M\n1 DEAT\n2 DATE 1990\n"
+            "1 RESI\n2 PLAC City\n2 PHON 99999\n"
+            "0 TRLR\n")
+        tree = gedcom.Tree(ged)
+        pub = treemod.build_details(tree, private=False)
+        prv = treemod.build_details(tree, private=True)
+        # public keeps the living person's phone
+        self.assertEqual(pub["@I1@"]["residences"][0]["phone"], "12345")
+        # private strips it
+        self.assertEqual(prv["@I1@"]["residences"][0]["phone"], "")
+        self.assertEqual(prv["@I1@"]["residences"][0]["email"], "")
+        # deceased person's contact is retained even in private mode
+        self.assertEqual(prv["@I2@"]["residences"][0]["phone"], "99999")
+
+
 class ParserCopiesInSyncTest(unittest.TestCase):
     def test_three_copies_identical(self):
         copies = [

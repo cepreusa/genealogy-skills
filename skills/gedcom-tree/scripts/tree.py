@@ -11,12 +11,19 @@ person to re-center the tree on them; pan by dragging, zoom with the wheel or
 the +/- buttons, and search by name. Cards are coloured by sex and show the
 name plus life years.
 
+Click any person to re-center; click the ``ⓘ`` badge on a card to open a side
+panel with their full detail — notes, sources (with clickable links), documents
+/scans, residences, occupations and quick links to relatives.
+
 Usage:
-    PYTHONIOENCODING=utf-8 python3 tree.py <file.ged> [output.html] [--focus <id|name>]
+    PYTHONIOENCODING=utf-8 python3 tree.py <file.ged> [output.html] \
+        [--focus <id|name>] [--private]
 
 If no output path is given, the viewer is written next to the .ged file as
 ``<name>.tree.html``. If no --focus is given, the most-connected person (the
 one with the largest surrounding family) is chosen as the starting point.
+``--private`` strips contact details (phone/email/street address) of people with
+no recorded death date, so the exported HTML doesn't leak info about the living.
 """
 
 import json
@@ -89,6 +96,42 @@ def build_graph(tree):
     return people, families
 
 
+def build_details(tree, private=False):
+    """Rich per-person detail for the info panel: notes, sources, residences,
+    events, links (URLs + scan paths), occupations.
+
+    With ``private=True``, contact details (phone/email/street address) of people
+    with no recorded death date (treated as possibly living) are stripped, so the
+    exported HTML doesn't leak personal contact info about the living.
+    """
+    details = {}
+    for xid, indi in tree.people.items():
+        d = tree.person_full(indi)
+        maybe_living = not (d.get("death") or {}).get("date")
+        residences = []
+        for r in d.get("residences", []):
+            r = dict(r)
+            if private and maybe_living:
+                r["phone"] = ""
+                r["email"] = ""
+                r["address"] = ""  # keep coarse place, drop street/contacts
+            residences.append(r)
+        details[xid] = {
+            "notes": d.get("notes", []),
+            "sources": d.get("sources", []),
+            "events": d.get("events", []),
+            "occupations": d.get("occupations", []),
+            "residences": residences,
+            "links": d.get("links", {"urls": [], "scans": []}),
+            "birth": d.get("birth", {}),
+            "death": d.get("death", {}),
+            "parents": d.get("parents", []),
+            "spouses": d.get("spouses", []),
+            "children": d.get("children", []),
+        }
+    return details
+
+
 def most_connected(tree, people, families):
     """Pick a good default focus: person with the most immediate relatives."""
     best_id, best_score = None, -1
@@ -142,6 +185,7 @@ def main(argv):
         return 2
 
     focus_query = None
+    private = False
     positional = []
     i = 0
     while i < len(args):
@@ -151,6 +195,8 @@ def main(argv):
             focus_query = args[i] if i < len(args) else None
         elif a.startswith("--focus="):
             focus_query = a.split("=", 1)[1]
+        elif a == "--private":
+            private = True
         else:
             positional.append(a)
         i += 1
@@ -171,6 +217,7 @@ def main(argv):
 
     tree = gedcom.Tree(path)
     people, families = build_graph(tree)
+    details = build_details(tree, private=private)
 
     focus, err = resolve_focus(tree, people, focus_query)
     if err:
@@ -192,7 +239,9 @@ def main(argv):
         },
         "people": people,
         "families": families,
+        "details": details,
         "focus": focus,
+        "private": private,
         "counts": {"people": len(people), "families": len(families)},
     }
 

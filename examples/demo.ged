@@ -17,7 +17,19 @@
 2 PLAC Тула, Россия
 1 DEAT
 2 DATE 1974
+2 CAUS Естественная смерть
 1 OCCU Кузнец
+2 PLAC Тульский оружейный завод
+1 RESI
+2 DATE FROM 1920 TO 1974
+2 PLAC Тула, Россия
+1 EVEN http://www.example-archive.org/tula/1900
+2 TYPE Метрическая запись о рождении
+1 NOTE Основатель тульской ветви семьи. Работал кузнецом на оружейном заводе. Скан: materials/skany/Ivan_Petrov_metrika_1900.png Статус: PROVEN.
+1 NOTE [CHANGELOG] 2026-07-09: imported from family records
+1 SOUR @S1@
+2 PAGE https://www.example-archive.org/record/ivan-petrov-1900
+1 SOUR Семейный архив Петровых, устные воспоминания
 1 FAMS @F1@
 0 @I2@ INDI
 1 NAME Анна /Соколова/
@@ -126,4 +138,8 @@
 2 DATE 1983
 1 CHIL @I8@
 1 CHIL @I9@
+0 @S1@ SOUR
+1 AUTH Государственный архив Тульской области
+1 TITL Метрические книги, ф.3 оп.1 д.42
+1 TEXT Запись о рождении Ивана Петрова, 1900 г.
 0 TRLR

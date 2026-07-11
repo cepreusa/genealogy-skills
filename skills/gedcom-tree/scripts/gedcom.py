@@ -22,7 +22,40 @@ IDs may be given with or without @-signs (e.g. I1, @I1@, F3).
 """
 
 import json
+import re
 import sys
+
+
+# --------------------------------------------------------------------------- #
+# Link extraction
+# --------------------------------------------------------------------------- #
+
+_URL_RE = re.compile(r"https?://[^\s<>\"')]+")
+# Vault-relative scan/document paths mentioned in note text, e.g.
+# "Скан: materials/skany/Ivan_award.png".
+_SCAN_RE = re.compile(
+    r"(?:materials/)?skany/[^\s<>\"']+\.(?:png|jpe?g|pdf|tif?f|gif)",
+    re.IGNORECASE,
+)
+
+
+def extract_links(notes):
+    """Harvest external URLs and document/scan paths from a list of note texts.
+
+    Returns {"urls": [...], "scans": [...]} with de-duplicated, order-preserved
+    entries. Used to turn plain-text references inside NOTE into clickable links
+    in the tree viewer, without altering the note text itself.
+    """
+    urls, scans = [], []
+    for note in notes or []:
+        for m in _URL_RE.findall(note or ""):
+            u = m.rstrip(".,;)")
+            if u not in urls:
+                urls.append(u)
+        for m in _SCAN_RE.findall(note or ""):
+            if m not in scans:
+                scans.append(m)
+    return {"urls": urls, "scans": scans}
 
 
 # --------------------------------------------------------------------------- #
@@ -176,12 +209,15 @@ class Tree:
         self.records = parse(path)
         self.people = {}   # xref -> Node (INDI)
         self.families = {}  # xref -> Node (FAM)
+        self.sources = {}  # xref -> Node (SOUR record)
         self.header = None
         for rec in self.records:
             if rec.tag == "INDI" and rec.xref:
                 self.people[rec.xref] = rec
             elif rec.tag == "FAM" and rec.xref:
                 self.families[rec.xref] = rec
+            elif rec.tag == "SOUR" and rec.xref:
+                self.sources[rec.xref] = rec
             elif rec.tag == "HEAD":
                 self.header = rec
 
@@ -256,11 +292,83 @@ class Tree:
             "occupation": indi.value_of("OCCU"),
         }
 
+    def source_ref(self, sour):
+        """Resolve one SOUR child of a record into a structured dict.
+
+        Handles both inline sources (``1 SOUR <text>`` with ``2 PAGE``/``2 DATA
+        /TEXT``) and pointers to a top-level SOUR record (``1 SOUR @Sxx@`` whose
+        record carries ``AUTH``/``TITL``/``TEXT``). Returns keys that are always
+        present (empty string when absent): title, author, page, text, url.
+        """
+        page = sour.value_of("PAGE")
+        text = sour.value_of("DATA", "TEXT") or sour.value_of("TEXT")
+        title = author = ""
+        # A pointer like "1 SOUR @S500003@" carries its value as the ref.
+        ref = (sour.value or "").strip()
+        rec = None
+        if ref.startswith("@"):
+            rec = self.sources.get(self.norm_id(ref))
+        if rec is not None:
+            author = rec.value_of("AUTH")
+            title = rec.value_of("TITL")
+            if not text:
+                text = rec.value_of("TEXT")
+        elif ref and not ref.startswith("@"):
+            title = ref  # inline free-text source description
+        url = ""
+        for cand in (page, ref):
+            m = re.search(r"https?://\S+", cand or "")
+            if m:
+                url = m.group(0)
+                break
+        return {"title": title, "author": author, "page": page,
+                "text": text, "url": url}
+
     def person_full(self, indi):
         data = self.person_brief(indi)
+        # Death cause, if recorded.
+        deat = indi.child("DEAT")
+        data["death"]["cause"] = deat.value_of("CAUS") if deat else ""
+        # All occupations (there can be several), with place.
+        data["occupations"] = [
+            {"title": (o.value or "").strip(), "place": o.value_of("PLAC")}
+            for o in indi.children_by("OCCU") if (o.value or "").strip()
+        ]
+        # Residences (RESI): date + place/address + contacts (contacts are
+        # flagged sensitive so the tree viewer can hide them with --private).
+        data["residences"] = []
+        for r in indi.children_by("RESI"):
+            addr = r.child("ADDR")
+            place = r.value_of("PLAC")
+            if addr is not None:
+                bits = [addr.value_of("ADR1"), addr.value_of("CITY"),
+                        addr.value_of("STAE"), addr.value_of("CTRY")]
+                addr_str = ", ".join(b for b in bits if b) or (addr.value or "")
+            else:
+                addr_str = ""
+            data["residences"].append({
+                "date": r.value_of("DATE"),
+                "place": place,
+                "address": addr_str,
+                "phone": r.value_of("PHON"),
+                "email": r.value_of("EMAIL"),
+            })
+        # Events carrying an external URL (e.g. archive database links).
+        data["events"] = []
+        for ev in indi.children_by("EVEN"):
+            val = (ev.value or "").strip()
+            m = re.search(r"https?://\S+", val)
+            data["events"].append({
+                "type": ev.value_of("TYPE"),
+                "text": val,
+                "url": m.group(0) if m else "",
+            })
+        # Notes, plus links (URLs and scan paths) harvested from note text.
         notes = [c.value for c in indi.children_by("NOTE") if c.value]
         data["notes"] = notes
-        data["sources"] = [c.value_of("PAGE") or (c.value or c.xref or "")
+        data["links"] = extract_links(notes)
+        # Structured sources (resolved).
+        data["sources"] = [self.source_ref(c)
                            for c in indi.children_by("SOUR")]
         # Families where this person is a spouse / child.
         spouse_fams = [c.value for c in indi.children_by("FAMS")]
