@@ -38,7 +38,7 @@ Run the bundled generator with `bash` (set `PYTHONIOENCODING=utf-8` so Cyrillic
 is handled correctly):
 
 ```bash
-PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.html]
+PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.html] [--lang ru|en]
 ```
 
 `<skill-dir>` is this skill's own directory wherever it is installed (e.g.
@@ -46,6 +46,9 @@ PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.
 
 - If you omit `output.html`, the report is written next to the `.ged` file as
   `<name>.report.html`.
+- `--lang ru|en` sets the interface language; when omitted it is **auto-detected**
+  from the names (any Cyrillic → Russian, otherwise English). Only the dashboard's
+  own labels are translated — the data itself is shown as-is.
 - The script prints a small JSON summary (people, families, M/F, year range,
   generations) — use it to tell the user what was built.
 - It ships its own copy of the parser (`scripts/gedcom.py`) and also falls back

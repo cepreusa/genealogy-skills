@@ -141,10 +141,10 @@
 </head>
 <body>
 <div id="bar">
-  <h1 id="title">Древо</h1>
+  <h1 id="title">Tree</h1>
   <span class="sub" id="counts"></span>
   <div id="search">
-    <input id="q" type="text" placeholder="Поиск по имени…" autocomplete="off">
+    <input id="q" type="text" data-i18n-ph="search_ph" autocomplete="off">
     <div id="results"></div>
   </div>
 </div>
@@ -152,23 +152,23 @@
 <div id="stage">
   <svg id="svg"><g id="root"></g></svg>
 </div>
-<div id="empty">Нет данных для отображения.</div>
+<div id="empty" data-i18n="empty">No data to display.</div>
 
 <div id="ctl">
-  <button class="btn" id="zin" title="Приблизить">+</button>
-  <button class="btn" id="zout" title="Отдалить">−</button>
-  <button class="btn" id="zfit" title="Показать всё" style="font-size:14px">⤢</button>
+  <button class="btn" id="zin" data-i18n-title="zoom_in">+</button>
+  <button class="btn" id="zout" data-i18n-title="zoom_out">−</button>
+  <button class="btn" id="zfit" data-i18n-title="fit" style="font-size:14px">⤢</button>
 </div>
 
 <div id="gens">
-  <label>Предки
+  <label><span data-i18n="ancestors">Ancestors</span>
     <select id="up">
       <option>0</option><option>1</option><option>2</option>
       <option selected>3</option><option>4</option><option>5</option>
       <option>6</option>
     </select>
   </label>
-  <label>Потомки
+  <label><span data-i18n="descendants">Descendants</span>
     <select id="down">
       <option>0</option><option>1</option><option selected>2</option>
       <option>3</option><option>4</option><option>5</option><option>6</option>
@@ -177,10 +177,10 @@
 </div>
 
 <div id="legend">
-  <span><i class="sw-c"></i>в фокусе</span>
-  <span><i class="sw-m"></i>муж.</span>
-  <span><i class="sw-f"></i>жен.</span>
-  <span><i class="sw-u"></i>?</span>
+  <span><i class="sw-c"></i><span data-i18n="focus">focused</span></span>
+  <span><i class="sw-m"></i><span data-i18n="male">male</span></span>
+  <span><i class="sw-f"></i><span data-i18n="female">female</span></span>
+  <span><i class="sw-u"></i><span data-i18n="unknown">?</span></span>
 </div>
 
 <div id="tip"></div>
@@ -191,7 +191,7 @@
       <div class="pn" id="p-name"></div>
       <div class="py" id="p-years"></div>
     </div>
-    <button id="pclose" title="Закрыть (Esc)">×</button>
+    <button id="pclose" data-i18n-title="close">×</button>
   </header>
   <div id="pbody"></div>
 </aside>
@@ -207,15 +207,36 @@ const DATA = /*__DATA__*/null;
   const stage = document.getElementById("stage");
   const tip = document.getElementById("tip");
 
+  // Interface strings (localized by the generator). Fall back to the key name so
+  // a missing string is obvious rather than blank.
+  const STR = (DATA && DATA.i18n) || {};
+  const T = k => (k in STR ? STR[k] : k);
+  document.documentElement.lang = (DATA && DATA.lang) || "ru";
+
+  // Fill every element tagged with data-i18n / data-i18n-title / data-i18n-ph.
+  function applyStaticI18n(){
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      el.textContent = T(el.getAttribute("data-i18n"));
+    });
+    document.querySelectorAll("[data-i18n-title]").forEach(el => {
+      el.title = T(el.getAttribute("data-i18n-title"));
+    });
+    document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+      el.placeholder = T(el.getAttribute("data-i18n-ph"));
+    });
+  }
+  applyStaticI18n();
+
   if(!DATA || !DATA.people || !Object.keys(DATA.people).length){
     document.getElementById("empty").style.display = "flex";
     return;
   }
 
   const P = DATA.people, F = DATA.families;
-  document.getElementById("title").textContent = "Древо — " + DATA.meta.file;
+  document.getElementById("title").textContent = T("title") + " — " + DATA.meta.file;
   document.getElementById("counts").textContent =
-    DATA.counts.people + " чел. · " + DATA.counts.families + " семей";
+    DATA.counts.people + " " + T("people") + " · " +
+    DATA.counts.families + " " + T("families");
 
   let focus = DATA.focus;
   let genUp = 3, genDown = 2;
@@ -230,8 +251,8 @@ const DATA = /*__DATA__*/null;
   function years(p){
     const b = p.birth, d = p.death;
     if(b && d) return b + "–" + d;
-    if(b) return "р. " + b;
-    if(d) return "ум. " + d;
+    if(b) return T("born_prefix") + b;
+    if(d) return T("died_prefix") + d;
     return "";
   }
   const cls = p => p.sex === "M" ? "m" : p.sex === "F" ? "f" : "u";
@@ -544,9 +565,8 @@ const DATA = /*__DATA__*/null;
     if(y) html += "<br>" + esc(y);
     if(p.place) html += "<br>" + esc(p.place);
     if(p.occ) html += "<br>" + esc(p.occ);
-    const hint = hasDetails(p.id) ? "клик — в центр · ⓘ — подробнее"
-                                  : "клик — в центр";
-    html += "<br><span style='color:#bbb'>" + hint + "</span>";
+    const hint = hasDetails(p.id) ? T("hint_center_info") : T("hint_center");
+    html += "<br><span style='color:#bbb'>" + esc(hint) + "</span>";
     tip.innerHTML = html;
     tip.style.opacity = "1";
     moveTip(e);
@@ -618,10 +638,11 @@ const DATA = /*__DATA__*/null;
         : s.startsWith("POSSIBLE") ? "possible" : "unproven";
       return { label: s.replace("-", " "), cls: "st-" + base };
     }
-    if(/\bнегативн\w*\s+результат/i.test(t))
-      return { label: "негативный результат", cls: "st-unproven" };
-    if(/\b(верси\w*|гипотез\w*|реконструкци\w*|предположительн\w*)\b/i.test(t))
-      return { label: "версия", cls: "st-version" };
+    if(/\bнегативн\w*\s+результат/i.test(t) || /\bnegative result\b/i.test(t))
+      return { label: T("status_negative"), cls: "st-unproven" };
+    if(/\b(верси\w*|гипотез\w*|реконструкци\w*|предположительн\w*)\b/i.test(t) ||
+       /\b(hypothes\w*|reconstruction|conjectur\w*)\b/i.test(t))
+      return { label: T("status_version"), cls: "st-version" };
     return null;
   }
   function statusChip(note){
@@ -648,12 +669,12 @@ const DATA = /*__DATA__*/null;
                .replace(/&nbsp;/gi, " ")
                .replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
 
-    // Peel off a trailing "Статус: …" sentence (already surfaced as the chip).
-    text = text.replace(/(^|[.\s])Статус[^.]*\.?\s*$/i, "$1").trim();
+    // Peel off a trailing "Статус: …"/"Status: …" sentence (shown as the chip).
+    text = text.replace(/(^|[.\s])(?:Статус|Status)[^.]*\.?\s*$/i, "$1").trim();
 
-    // Split off a citation tail ("Источник: …", optionally "Скан: …").
+    // Split off a citation tail ("Источник:"/"Source:", opt. "Скан:"/"Scan:").
     let cite = "";
-    const cm = /(?:^|[\s.])((?:Источник|Скан)\s*:\s.*)$/is.exec(text);
+    const cm = /(?:^|[\s.])((?:Источник|Скан|Source|Scan)\s*:\s.*)$/is.exec(text);
     if(cm){ cite = cm[1].trim(); text = text.slice(0, cm.index).trim(); }
 
     // Pull out ⚠️ warning sentences into their own callouts.
@@ -673,7 +694,7 @@ const DATA = /*__DATA__*/null;
     }
     if(cite){
       const c = el("span", "cite");
-      const cl = /^(Источник|Скан)\s*:/i.exec(cite);
+      const cl = /^(Источник|Скан|Source|Scan)\s*:/i.exec(cite);
       if(cl){
         c.appendChild(el("b", null, cl[0]));
         c.appendChild(document.createTextNode(cite.slice(cl[0].length)));
@@ -701,16 +722,16 @@ const DATA = /*__DATA__*/null;
     if(d && d.birth){
       const b = d.birth;
       if(b.date || b.place)
-        facts.push(["Рождение", [b.date, b.place].filter(Boolean).join(", ")]);
+        facts.push([T("fact_birth"), [b.date, b.place].filter(Boolean).join(", ")]);
     }
     if(d && d.death){
       const dd = d.death;
       const parts = [dd.date, dd.place].filter(Boolean).join(", ");
       if(parts || dd.cause)
-        facts.push(["Смерть", parts + (dd.cause ? " (" + dd.cause + ")" : "")]);
+        facts.push([T("fact_death"), parts + (dd.cause ? " (" + dd.cause + ")" : "")]);
     }
     if(facts.length){
-      section("Факты");
+      section(T("sec_facts"));
       for(const [k, v] of facts){
         const row = el("div", "row");
         row.appendChild(el("span", "k", k + ": "));
@@ -721,7 +742,7 @@ const DATA = /*__DATA__*/null;
 
     // Occupations
     if(d && d.occupations && d.occupations.length){
-      section("Занятия");
+      section(T("sec_occupations"));
       for(const o of d.occupations){
         const t = o.title + (o.place ? " (" + o.place + ")" : "");
         pbody.appendChild(el("div", "row", t));
@@ -733,7 +754,7 @@ const DATA = /*__DATA__*/null;
       const rows = d.residences.filter(r =>
         r.date || r.place || r.address || r.phone || r.email);
       if(rows.length){
-        section("Проживание");
+        section(T("sec_residence"));
         for(const r of rows){
           const bits = [r.date, r.place, r.address, r.phone, r.email]
             .filter(Boolean).join(" · ");
@@ -747,13 +768,13 @@ const DATA = /*__DATA__*/null;
       const real = d.notes.filter(n => !isChangelog(n));
       const logs = d.notes.filter(isChangelog);
       if(real.length){
-        section("Заметки");
+        section(T("sec_notes"));
         for(const n of real) pbody.appendChild(renderNote(n));
       }
       if(logs.length){
         const det = document.createElement("details");
         det.appendChild(el("summary", null,
-          "История изменений (" + logs.length + ")"));
+          T("changelog") + " (" + logs.length + ")"));
         for(const n of logs) det.appendChild(el("div", "note muted", n));
         pbody.appendChild(det);
       }
@@ -764,7 +785,7 @@ const DATA = /*__DATA__*/null;
       const srcs = d.sources.filter(s =>
         s.title || s.author || s.page || s.text || s.url);
       if(srcs.length){
-        section("Источники");
+        section(T("sec_sources"));
         for(const s of srcs){
           const box = el("div", "src");
           const head = [s.author, s.title].filter(Boolean).join(" — ");
@@ -794,7 +815,7 @@ const DATA = /*__DATA__*/null;
       return "📄";
     }
     if(docs.length || extraScans.length || allUrls.length){
-      section("Документы и ссылки");
+      section(T("sec_documents"));
       for(const doc of docs){
         const name = doc.title || doc.path.split(/[\\/]/).pop();
         const w = el("span", "doc");
@@ -822,19 +843,19 @@ const DATA = /*__DATA__*/null;
       if(!arr || !arr.length) return;
       section(title);
       for(const r of arr){
-        const b = el("span", "rel", r.name + (r.role === "HUSB" ? " (отец)"
-          : r.role === "WIFE" ? " (мать)" : ""));
+        const b = el("span", "rel", r.name + (r.role === "HUSB" ? " (" + T("role_father") + ")"
+          : r.role === "WIFE" ? " (" + T("role_mother") + ")" : ""));
         b.addEventListener("click", () => { setFocus(r.id); openPanel(r.id); });
         pbody.appendChild(b);
       }
     }
-    relRow("Родители", d && d.parents);
-    relRow("Супруг(а)", d && d.spouses);
-    relRow("Дети", d && d.children);
+    relRow(T("sec_parents"), d && d.parents);
+    relRow(T("sec_spouses"), d && d.spouses);
+    relRow(T("sec_children"), d && d.children);
 
     // Re-centre button
     section("");
-    const rc = el("span", "rel", "↺ В центр дерева");
+    const rc = el("span", "rel", T("recenter"));
     rc.addEventListener("click", () => { setFocus(id); });
     pbody.appendChild(rc);
 
@@ -910,7 +931,10 @@ const DATA = /*__DATA__*/null;
       .sort((a, b) => (a.birth || 9999) - (b.birth || 9999))
       .slice(0, 40);
     if(!hits.length){
-      results.innerHTML = "<div style='color:#999'>Никого не найдено</div>";
+      results.innerHTML = "";
+      const none = el("div", null, T("no_results"));
+      none.style.color = "#999";
+      results.appendChild(none);
       results.style.display = "block"; return;
     }
     results.innerHTML = "";

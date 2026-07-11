@@ -45,7 +45,7 @@ Run the bundled generator with `bash` (set `PYTHONIOENCODING=utf-8` so Cyrillic
 is handled correctly):
 
 ```bash
-PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.html] [--focus <id|name>] [--private]
+PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.html] [--focus <id|name>] [--private] [--lang ru|en]
 ```
 
 `<skill-dir>` is this skill's own directory wherever it is installed (e.g.
@@ -59,6 +59,9 @@ PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.ht
 - `--private` strips contact details (phone, email, street address) of people
   with **no recorded death date** (treated as possibly living), so the exported
   HTML doesn't leak personal contact info. Use it when sharing the file.
+- `--lang ru|en` sets the interface language. When omitted it is **auto-detected**
+  from the names: any Cyrillic → Russian, otherwise English. Only the UI chrome
+  is translated — the people's own names/places are shown exactly as in the file.
 - The script prints a small JSON summary (output path, people, families, the
   chosen focus id/name) — use it to tell the user what was built.
 - It ships its own copy of the parser (`scripts/gedcom.py`) and also falls back

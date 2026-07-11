@@ -109,7 +109,7 @@
 </head>
 <body>
 <header class="top">
-  <h1 id="title">Родословная</h1>
+  <h1 id="title">Family tree</h1>
   <div class="file" id="subtitle"></div>
 </header>
 <main>
@@ -120,7 +120,7 @@
 
   <!-- 2. Sex -->
   <section id="s-sex">
-    <h2>Пропорция полов <span class="hint">мужчины / женщины и по поколениям</span></h2>
+    <h2><span data-i18n="sec_sex"></span> <span class="hint" data-i18n="sec_sex_hint"></span></h2>
     <div class="grid two">
       <div class="panel"><div class="chart-box"><canvas id="sexDonut"></canvas></div>
         <div id="sexDonutFallback" class="fallback"></div></div>
@@ -131,69 +131,69 @@
 
   <!-- 3. Name clouds -->
   <section id="s-clouds">
-    <h2>Облака имён <span class="hint">размер = частота</span></h2>
+    <h2><span data-i18n="sec_clouds"></span> <span class="hint" data-i18n="sec_clouds_hint"></span></h2>
     <div class="grid two">
-      <div class="panel"><h3 style="margin:0 0 10px;font-size:1rem">Фамилии</h3>
+      <div class="panel"><h3 style="margin:0 0 10px;font-size:1rem" data-i18n="surnames"></h3>
         <div class="cloud" id="cloudSurnames"></div></div>
-      <div class="panel"><h3 style="margin:0 0 10px;font-size:1rem">Имена</h3>
+      <div class="panel"><h3 style="margin:0 0 10px;font-size:1rem" data-i18n="given_names"></h3>
         <div class="cloud" id="cloudGiven"></div></div>
     </div>
   </section>
 
   <!-- 4. Name trends -->
   <section id="s-trends">
-    <h2>Мода на имена по декадам <span class="hint">топ-3 имени каждого десятилетия</span></h2>
+    <h2><span data-i18n="sec_trends"></span> <span class="hint" data-i18n="sec_trends_hint"></span></h2>
     <div class="panel"><div id="trends"></div></div>
   </section>
 
   <!-- 5. Births by decade -->
   <section id="s-births">
-    <h2>Рождения по десятилетиям</h2>
+    <h2><span data-i18n="sec_births"></span></h2>
     <div class="panel"><div class="chart-box"><canvas id="births"></canvas></div>
       <div id="birthsFallback" class="fallback"></div></div>
   </section>
 
   <!-- 6. Top surnames -->
   <section id="s-surnames">
-    <h2>Топ фамилий</h2>
+    <h2><span data-i18n="sec_top_surnames"></span></h2>
     <div class="panel"><div class="chart-box"><canvas id="surnames"></canvas></div>
       <div id="surnamesFallback" class="fallback"></div></div>
   </section>
 
   <!-- 7. Birthday heatmap -->
   <section id="s-heat">
-    <h2>Календарь дней рождения <span class="hint">месяц × день</span></h2>
+    <h2><span data-i18n="sec_birthday_cal"></span> <span class="hint" data-i18n="sec_birthday_cal_hint"></span></h2>
     <div class="panel"><div class="heat" id="heat"></div>
-      <div class="legend"><span>реже</span>
+      <div class="legend"><span data-i18n="less"></span>
         <span class="sw" style="background:#e6e0f5"></span>
         <span class="sw" style="background:#b9a5ec"></span>
         <span class="sw" style="background:#8b5cf6"></span>
         <span class="sw" style="background:#5b21b6"></span>
-        <span>чаще</span></div></div>
+        <span data-i18n="more"></span></div></div>
   </section>
 
   <!-- 8. Longevity -->
   <section id="s-longevity">
-    <h2>Долгожители <span class="hint">по продолжительности жизни</span></h2>
+    <h2><span data-i18n="sec_longevity"></span> <span class="hint" data-i18n="sec_longevity_hint"></span></h2>
     <div class="panel"><div id="longevity"></div></div>
   </section>
 
   <!-- 9. Biggest families -->
   <section id="s-families">
-    <h2>Самые большие семьи <span class="hint">по числу детей</span></h2>
+    <h2><span data-i18n="sec_big_families"></span> <span class="hint" data-i18n="sec_big_families_hint"></span></h2>
     <div class="panel"><div id="families"></div></div>
   </section>
 
   <!-- 10. Places -->
   <section id="s-places">
-    <h2>Топ мест</h2>
+    <h2><span data-i18n="sec_top_places"></span></h2>
     <div class="panel"><div class="chart-box"><canvas id="places"></canvas></div>
       <div id="placesFallback" class="fallback"></div></div>
   </section>
 
   <!-- 11. Timeline -->
   <section id="s-timeline">
-    <h2>Лента событий <span class="hint">рождения, браки, смерти</span></h2>
+    <h2><span data-i18n="sec_timeline"></span> <span class="hint" data-i18n="sec_timeline_hint"></span></h2>
     <div class="panel">
       <div class="timeline-ctl" id="tlCtl"></div>
       <div class="tl" id="tl"></div>
@@ -202,7 +202,7 @@
 
   <!-- 12. Data quality -->
   <section id="s-quality">
-    <h2>Проверка качества данных <span class="hint">для дальнейшего исследования</span></h2>
+    <h2><span data-i18n="sec_quality"></span> <span class="hint" data-i18n="sec_quality_hint"></span></h2>
     <div class="panel">
       <div class="grid q-grid" id="qCards"></div>
       <div id="qSources" style="margin-top:18px"></div>
@@ -210,8 +210,7 @@
     </div>
   </section>
 </main>
-<footer>Сгенерировано скиллом <b>gedcom-report</b> · без внешних зависимостей ·
-  графики Chart.js подгружаются из CDN, при отсутствии сети данные показаны таблицами</footer>
+<footer id="footer"></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script>
@@ -221,8 +220,23 @@ const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+// ---- i18n ----
+// Interface strings are localized by the generator and shipped in DATA.i18n;
+// here T(key) looks them up (falling back to the key name if missing).
+const STR = (DATA && DATA.i18n) || {};
+const T = k => (k in STR ? STR[k] : k);
+const MONTHS_I18N = (DATA && DATA.months) ||
+  ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+document.documentElement.lang = (DATA && DATA.lang) || "ru";
+// Fill static elements tagged with data-i18n (textContent). The footer carries
+// simple <b> markup, so it is set via innerHTML from a trusted string.
+document.querySelectorAll("[data-i18n]").forEach(el => {
+  el.textContent = T(el.getAttribute("data-i18n"));
+});
+document.getElementById("footer").innerHTML = T("footer");
+
 // ---- header ----
-document.getElementById("title").textContent = "Родословная";
+document.getElementById("title").textContent = T("report_title");
 document.getElementById("subtitle").textContent =
   `${DATA.meta.file} · GEDCOM ${DATA.meta.gedcom_version||"?"} · ` +
   `${DATA.meta.charset||"?"} · ${DATA.meta.language||""}`;
@@ -232,12 +246,12 @@ document.getElementById("subtitle").textContent =
   const o = DATA.overview, span =
     (o.year_min!=null ? `${o.year_min}–${o.year_max}` : "—");
   const cards = [
-    ["Людей", o.people], ["Семей", o.families],
-    ["Мужчин", o.male], ["Женщин", o.female],
-    ["Годы рождения", span], ["Поколений", o.generations],
-    ["Средний возраст", o.avg_lifespan!=null?o.avg_lifespan+" лет":"—"],
-    ["Детей на семью", o.avg_children!=null?o.avg_children:"—"],
-    ["Уникальных фамилий", o.distinct_surnames],
+    [T("ov_people"), o.people], [T("ov_families"), o.families],
+    [T("ov_male"), o.male], [T("ov_female"), o.female],
+    [T("ov_birth_years"), span], [T("ov_generations"), o.generations],
+    [T("ov_avg_age"), o.avg_lifespan!=null?o.avg_lifespan+" "+T("ov_years_suffix"):"—"],
+    [T("ov_children_per_family"), o.avg_children!=null?o.avg_children:"—"],
+    [T("ov_unique_surnames"), o.distinct_surnames],
   ];
   document.getElementById("cards").innerHTML = cards.map(([l,v]) =>
     `<div class="card"><div class="num">${esc(v)}</div><div class="lbl">${l}</div></div>`
@@ -253,44 +267,45 @@ function tbl(headers, rows, aligns){
 }
 function fallbackTable(id, headers, rows, aligns, openLabel){
   document.getElementById(id).innerHTML =
-    `<details class="fallback"><summary>${openLabel||"Показать данные таблицей"}</summary>`+
+    `<details class="fallback"><summary>${openLabel||T("show_as_table")}</summary>`+
     tbl(headers, rows, aligns)+`</details>`;
 }
 
 // ---- 2. sex ----
 (function(){
   const s = DATA.sex;
-  fallbackTable("sexDonutFallback", ["Пол","Кол-во"],
-    [["Мужчины",s.M],["Женщины",s.F]].concat(s.U?[["Не указан",s.U]]:[]),
+  const dLabel = d => d.decade + T("decade_suffix_x");
+  fallbackTable("sexDonutFallback", [T("col_sex"),T("col_count")],
+    [[T("male"),s.M],[T("female"),s.F]].concat(s.U?[[T("sex_unknown"),s.U]]:[]),
     [null,"n"]);
   const dec = DATA.sex_by_decade;
-  fallbackTable("sexDecadeFallback", ["Декада","М","Ж"],
-    dec.map(d=>[d.decade+"-е",d.M,d.F]), [null,"n","n"]);
+  fallbackTable("sexDecadeFallback", [T("col_decade"),T("col_m"),T("col_f")],
+    dec.map(d=>[dLabel(d),d.M,d.F]), [null,"n","n"]);
   if(!hasChart) return;
   new Chart(document.getElementById("sexDonut"),{
     type:"doughnut",
-    data:{labels:["Мужчины","Женщины"].concat(s.U?["Не указан"]:[]),
+    data:{labels:[T("male"),T("female")].concat(s.U?[T("sex_unknown")]:[]),
       datasets:[{data:[s.M,s.F].concat(s.U?[s.U]:[]),
         backgroundColor:[css("--male"),css("--female"),css("--muted")]}]},
     options:{plugins:{legend:{position:"bottom",labels:{color:css("--ink")}},
-      title:{display:true,text:"Соотношение полов",color:css("--muted")}}}
+      title:{display:true,text:T("sex_ratio"),color:css("--muted")}}}
   });
   new Chart(document.getElementById("sexDecade"),{
     type:"bar",
-    data:{labels:dec.map(d=>d.decade+"-е"),datasets:[
-      {label:"Мужчины",data:dec.map(d=>d.M),backgroundColor:css("--male")},
-      {label:"Женщины",data:dec.map(d=>d.F),backgroundColor:css("--female")}]},
+    data:{labels:dec.map(dLabel),datasets:[
+      {label:T("male"),data:dec.map(d=>d.M),backgroundColor:css("--male")},
+      {label:T("female"),data:dec.map(d=>d.F),backgroundColor:css("--female")}]},
     options:{responsive:true,scales:{x:{stacked:true,ticks:{color:css("--muted")}},
       y:{stacked:true,ticks:{color:css("--muted")}}},
       plugins:{legend:{labels:{color:css("--ink")}},
-      title:{display:true,text:"Полы по поколениям",color:css("--muted")}}}
+      title:{display:true,text:T("sex_by_gen"),color:css("--muted")}}}
   });
 })();
 
 // ---- 3. clouds ----
 function renderCloud(id, items){
   const el = document.getElementById(id);
-  if(!items.length){ el.innerHTML='<span class="empty">нет данных</span>'; return; }
+  if(!items.length){ el.innerHTML='<span class="empty">'+esc(T("no_data"))+'</span>'; return; }
   const max = items[0].count, min = items[items.length-1].count;
   const lo=13, hi=44;
   const shuffled = items.slice().sort(()=>Math.random()-0.5);
@@ -309,21 +324,22 @@ renderCloud("cloudGiven", DATA.cloud_given);
 (function(){
   const t = DATA.name_trends;
   if(!t.length){ document.getElementById("trends").innerHTML=
-    '<span class="empty">нет данных о датах рождения</span>'; return; }
-  const rows = t.map(d=>[d.decade+"-е",
+    '<span class="empty">'+esc(T("no_birth_dates"))+'</span>'; return; }
+  const rows = t.map(d=>[d.decade+T("decade_suffix_x"),
     d.names.map(n=>`${esc(n.name)} <span style="color:var(--muted)">(${n.count})</span>`).join(", ")]);
-  document.getElementById("trends").innerHTML = tbl(["Десятилетие","Популярные имена"], rows);
+  document.getElementById("trends").innerHTML = tbl([T("col_decade2"),T("col_popular_names")], rows);
 })();
 
 // ---- 5. births ----
 (function(){
   const b = DATA.births_by_decade;
-  fallbackTable("birthsFallback",["Декада","Рождений"],
-    b.map(d=>[d.decade+"-е",d.count]),[null,"n"]);
+  const bl = d => d.decade + T("decade_suffix_x");
+  fallbackTable("birthsFallback",[T("col_decade"),T("births")],
+    b.map(d=>[bl(d),d.count]),[null,"n"]);
   if(!hasChart||!b.length) return;
   new Chart(document.getElementById("births"),{
     type:"bar",
-    data:{labels:b.map(d=>d.decade+"-е"),datasets:[{label:"Рождений",
+    data:{labels:b.map(bl),datasets:[{label:T("births"),
       data:b.map(d=>d.count),backgroundColor:css("--accent")}]},
     options:{plugins:{legend:{display:false}},
       scales:{x:{ticks:{color:css("--muted")}},y:{ticks:{color:css("--muted")}}}}
@@ -333,12 +349,12 @@ renderCloud("cloudGiven", DATA.cloud_given);
 // ---- 6. surnames ----
 (function(){
   const s = DATA.top_surnames;
-  fallbackTable("surnamesFallback",["Фамилия","Кол-во"],
+  fallbackTable("surnamesFallback",[T("col_surname"),T("col_count")],
     s.map(x=>[esc(x.surname),x.count]),[null,"n"]);
   if(!hasChart||!s.length) return;
   new Chart(document.getElementById("surnames"),{
     type:"bar",
-    data:{labels:s.map(x=>x.surname),datasets:[{label:"Носителей",
+    data:{labels:s.map(x=>x.surname),datasets:[{label:T("bearers"),
       data:s.map(x=>x.count),backgroundColor:css("--accent2")}]},
     options:{indexAxis:"y",plugins:{legend:{display:false}},
       scales:{x:{ticks:{color:css("--muted")}},y:{ticks:{color:css("--muted")}}}}
@@ -350,7 +366,7 @@ renderCloud("cloudGiven", DATA.cloud_given);
   const el = document.getElementById("heat");
   const grid = {}; let max=0;
   DATA.heatmap.forEach(h=>{ grid[h.m+"-"+h.d]=h.c; if(h.c>max)max=h.c; });
-  const months=["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+  const months=MONTHS_I18N;
   function color(c){
     if(!c) return "var(--line)";
     const t = max<=1?1:(c-1)/(max-1);
@@ -374,9 +390,9 @@ renderCloud("cloudGiven", DATA.cloud_given);
 (function(){
   const l = DATA.longevity;
   if(!l.length){ document.getElementById("longevity").innerHTML=
-    '<span class="empty">нет пар дат рождения и смерти</span>'; return; }
+    '<span class="empty">'+esc(T("no_lifespans"))+'</span>'; return; }
   document.getElementById("longevity").innerHTML = tbl(
-    ["#","Имя","Годы","Возраст"],
+    [T("col_hash"),T("col_name"),T("col_years"),T("col_age")],
     l.map((x,i)=>[i+1,esc(x.name),`${x.birth}–${x.death}`,x.age]),
     ["n",null,null,"n"]);
 })();
@@ -385,21 +401,21 @@ renderCloud("cloudGiven", DATA.cloud_given);
 (function(){
   const f = DATA.biggest_families;
   if(!f.length){ document.getElementById("families").innerHTML=
-    '<span class="empty">нет семей с детьми</span>'; return; }
+    '<span class="empty">'+esc(T("no_families_children"))+'</span>'; return; }
   document.getElementById("families").innerHTML = tbl(
-    ["#","Родители","Детей"],
+    [T("col_hash"),T("col_parents"),T("col_children")],
     f.map((x,i)=>[i+1,esc(x.family),x.children]),["n",null,"n"]);
 })();
 
 // ---- 10. places ----
 (function(){
   const p = DATA.places;
-  fallbackTable("placesFallback",["Место","Событий"],
+  fallbackTable("placesFallback",[T("col_place"),T("events")],
     p.map(x=>[esc(x.place),x.count]),[null,"n"]);
   if(!hasChart||!p.length) return;
   new Chart(document.getElementById("places"),{
     type:"bar",
-    data:{labels:p.map(x=>x.place),datasets:[{label:"Событий",
+    data:{labels:p.map(x=>x.place),datasets:[{label:T("events"),
       data:p.map(x=>x.count),backgroundColor:css("--accent")}]},
     options:{indexAxis:"y",plugins:{legend:{display:false}},
       scales:{x:{ticks:{color:css("--muted")}},y:{ticks:{color:css("--muted")}}}}
@@ -410,11 +426,11 @@ renderCloud("cloudGiven", DATA.cloud_given);
 (function(){
   const ev = DATA.timeline;
   const colors={birth:css("--ok"),marriage:css("--accent"),death:css("--muted")};
-  const labels={all:"Все",birth:"Рождения",marriage:"Браки",death:"Смерти"};
+  const labels={all:T("tl_all"),birth:T("tl_births"),marriage:T("tl_marriages"),death:T("tl_deaths")};
   const tl = document.getElementById("tl");
   function draw(filter){
     const rows = ev.filter(e=>filter==="all"||e.type===filter);
-    if(!rows.length){ tl.innerHTML='<span class="empty">нет событий</span>'; return; }
+    if(!rows.length){ tl.innerHTML='<span class="empty">'+esc(T("no_events"))+'</span>'; return; }
     tl.innerHTML = rows.map(e=>
       `<div class="row"><div class="yr">${e.year}</div>`+
       `<div class="dot" style="background:${colors[e.type]}"></div>`+
@@ -437,26 +453,26 @@ renderCloud("cloudGiven", DATA.cloud_given);
 (function(){
   const q = DATA.quality, o = DATA.overview;
   const cards=[
-    ["Без даты рождения",q.no_birth],["Без даты смерти",q.no_death],
-    ["Без родителей",q.no_parents],["Одиночные записи",q.isolated],
-    ["Всего источников",q.sources_total],
-    ["Возможных аномалий",q.anomaly_total],
+    [T("q_no_birth"),q.no_birth],[T("q_no_death"),q.no_death],
+    [T("q_no_parents"),q.no_parents],[T("q_singletons"),q.isolated],
+    [T("q_total_sources"),q.sources_total],
+    [T("q_possible_anomalies"),q.anomaly_total],
   ];
   document.getElementById("qCards").innerHTML = cards.map(([l,v])=>
-    `<div class="card"><div class="num">${v}</div><div class="lbl">${l}</div></div>`).join("");
+    `<div class="card"><div class="num">${v}</div><div class="lbl">${esc(l)}</div></div>`).join("");
   if(q.quay && q.quay.length){
     document.getElementById("qSources").innerHTML =
-      "<h3 style='margin:0 0 8px;font-size:1rem'>Уровни доказательности источников</h3>"+
-      tbl(["Уровень","Кол-во"], q.quay.map(x=>[x.level,x.count]),[null,"n"]);
+      "<h3 style='margin:0 0 8px;font-size:1rem'>"+esc(T("q_source_levels"))+"</h3>"+
+      tbl([T("col_level"),T("col_count")], q.quay.map(x=>[x.level,x.count]),[null,"n"]);
   }
   const an = document.getElementById("qAnomalies");
   if(q.anomaly_total){
     an.innerHTML = `<h3 style="margin:0 0 8px;font-size:1rem">`+
-      `Возможные аномалии дат <span class="badge warn">${q.anomaly_total}</span></h3>`+
-      `<p style="color:var(--muted);font-size:.82rem;margin:0">Это подсказки для проверки, а не ошибки — данные могли быть внесены приблизительно.</p>`+
+      `${esc(T("q_date_anomalies"))} <span class="badge warn">${q.anomaly_total}</span></h3>`+
+      `<p style="color:var(--muted);font-size:.82rem;margin:0">${esc(T("q_anomalies_help"))}</p>`+
       "<ul class='anom'>"+q.anomalies.map(a=>`<li>${esc(a)}</li>`).join("")+"</ul>";
   } else {
-    an.innerHTML = `<span class="badge ok">Явных аномалий дат не найдено</span>`;
+    an.innerHTML = `<span class="badge ok">${esc(T("q_no_anomalies"))}</span>`;
   }
 })();
 </script>

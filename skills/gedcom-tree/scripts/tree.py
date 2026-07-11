@@ -17,13 +17,15 @@ panel with their full detail — notes, sources (with clickable links), document
 
 Usage:
     PYTHONIOENCODING=utf-8 python3 tree.py <file.ged> [output.html] \
-        [--focus <id|name>] [--private]
+        [--focus <id|name>] [--private] [--lang ru|en]
 
 If no output path is given, the viewer is written next to the .ged file as
 ``<name>.tree.html``. If no --focus is given, the most-connected person (the
 one with the largest surrounding family) is chosen as the starting point.
 ``--private`` strips contact details (phone/email/street address) of people with
 no recorded death date, so the exported HTML doesn't leak info about the living.
+``--lang`` sets the interface language; when omitted it is auto-detected from the
+names (Cyrillic -> Russian, otherwise English).
 """
 
 import json
@@ -38,6 +40,114 @@ _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _here)
 sys.path.insert(1, os.path.join(_here, "..", "..", "gedcom-reader", "scripts"))
 import gedcom  # noqa: E402
+
+
+# --------------------------------------------------------------------------- #
+# UI localization
+# --------------------------------------------------------------------------- #
+# The viewer's interface strings live here (Russian + English). The chosen set
+# is injected into the page as `DATA.i18n`, and the template's JS reads keys from
+# it instead of hard-coding text. `title`/`born`/`died` etc. carry no dynamic
+# parts; the JS does any interpolation around them.
+I18N = {
+    "ru": {
+        "title": "Древо",                 # window/header title prefix: "Древо — file"
+        "people": "чел.",                 # "N чел. · M семей"
+        "families": "семей",
+        "search_ph": "Поиск по имени…",
+        "zoom_in": "Приблизить",
+        "zoom_out": "Отдалить",
+        "fit": "Показать всё",
+        "close": "Закрыть (Esc)",
+        "ancestors": "Предки",
+        "descendants": "Потомки",
+        "focus": "в фокусе",
+        "male": "муж.",
+        "female": "жен.",
+        "unknown": "?",
+        "empty": "Нет данных для отображения.",
+        "born_prefix": "р. ",             # "р. 1960"
+        "died_prefix": "ум. ",            # "ум. 1974"
+        "hint_center": "клик — в центр",
+        "hint_center_info": "клик — в центр · ⓘ — подробнее",
+        "sec_facts": "Факты",
+        "fact_birth": "Рождение",
+        "fact_death": "Смерть",
+        "sec_occupations": "Занятия",
+        "sec_residence": "Проживание",
+        "sec_notes": "Заметки",
+        "sec_sources": "Источники",
+        "sec_documents": "Документы и ссылки",
+        "sec_parents": "Родители",
+        "sec_spouses": "Супруг(а)",
+        "sec_children": "Дети",
+        "changelog": "История изменений",  # "История изменений (N)"
+        "recenter": "↺ В центр дерева",
+        "role_father": "отец",
+        "role_mother": "мать",
+        "status_negative": "негативный результат",
+        "status_version": "версия",
+        "no_results": "Никого не найдено",
+    },
+    "en": {
+        "title": "Tree",
+        "people": "people",
+        "families": "families",
+        "search_ph": "Search by name…",
+        "zoom_in": "Zoom in",
+        "zoom_out": "Zoom out",
+        "fit": "Fit to view",
+        "close": "Close (Esc)",
+        "ancestors": "Ancestors",
+        "descendants": "Descendants",
+        "focus": "focused",
+        "male": "male",
+        "female": "female",
+        "unknown": "?",
+        "empty": "No data to display.",
+        "born_prefix": "b. ",
+        "died_prefix": "d. ",
+        "hint_center": "click — center",
+        "hint_center_info": "click — center · ⓘ — details",
+        "sec_facts": "Facts",
+        "fact_birth": "Birth",
+        "fact_death": "Death",
+        "sec_occupations": "Occupations",
+        "sec_residence": "Residence",
+        "sec_notes": "Notes",
+        "sec_sources": "Sources",
+        "sec_documents": "Documents & links",
+        "sec_parents": "Parents",
+        "sec_spouses": "Spouse",
+        "sec_children": "Children",
+        "changelog": "Change log",
+        "recenter": "↺ Center the tree",
+        "role_father": "father",
+        "role_mother": "mother",
+        "status_negative": "negative result",
+        "status_version": "hypothesis",
+        "no_results": "No one found",
+    },
+}
+
+_CYRILLIC_RE = re.compile(r"[\u0400-\u04FF]")
+
+
+def detect_lang(tree, people):
+    """Guess the UI language from the tree's person names.
+
+    If any name contains Cyrillic letters, use Russian; otherwise English.
+    Used when no explicit --lang is given, so Cyrillic trees stay Russian and
+    Latin-only trees come out in English.
+    """
+    for p in people.values():
+        if _CYRILLIC_RE.search(p.get("name") or ""):
+            return "ru"
+    return "en"
+
+
+def strings_for(lang):
+    return I18N.get(lang, I18N["ru"])
 
 
 def year_of(date_str):
@@ -187,6 +297,7 @@ def main(argv):
 
     focus_query = None
     private = False
+    lang = None            # None -> auto-detect from the data
     positional = []
     i = 0
     while i < len(args):
@@ -198,9 +309,19 @@ def main(argv):
             focus_query = a.split("=", 1)[1]
         elif a == "--private":
             private = True
+        elif a == "--lang":
+            i += 1
+            lang = args[i] if i < len(args) else None
+        elif a.startswith("--lang="):
+            lang = a.split("=", 1)[1]
         else:
             positional.append(a)
         i += 1
+
+    if lang is not None and lang not in I18N:
+        print(json.dumps({"error": f"unknown --lang '{lang}' (use ru|en)"},
+                         ensure_ascii=False), file=sys.stderr)
+        return 1
 
     if not positional:
         print(__doc__)
@@ -232,6 +353,10 @@ def main(argv):
                          ensure_ascii=False), file=sys.stderr)
         return 1
 
+    if lang is None:
+        lang = detect_lang(tree, people)
+    strings = strings_for(lang)
+
     header = tree.header
     payload = {
         "meta": {
@@ -243,12 +368,14 @@ def main(argv):
         "details": details,
         "focus": focus,
         "private": private,
+        "lang": lang,
+        "i18n": strings,
         "counts": {"people": len(people), "families": len(families)},
     }
 
     template = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "template.html")
-    title = f"Древо — {payload['meta']['file']}"
+    title = f"{strings['title']} — {payload['meta']['file']}"
     html = render(payload, template, title)
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(html)
@@ -259,6 +386,7 @@ def main(argv):
         "families": len(families),
         "focus": focus,
         "focus_name": people[focus]["name"],
+        "lang": lang,
     }, ensure_ascii=False))
     return 0
 

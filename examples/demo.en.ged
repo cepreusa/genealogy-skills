@@ -1,0 +1,153 @@
+0 HEAD
+1 SOUR gedcom-skills
+2 NAME gedcom-skills reader/writer
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+1 DATE 09 JUL 2026
+1 FILE Demo Family Tree (English)
+0 @I1@ INDI
+1 NAME John /Smith/
+2 GIVN John
+2 SURN Smith
+1 SEX M
+1 BIRT
+2 DATE ABT 1900
+2 PLAC Sheffield, England
+1 DEAT
+2 DATE 1974
+2 CAUS Natural causes
+1 OCCU Blacksmith
+2 PLAC Sheffield Steel Works
+1 RESI
+2 DATE FROM 1920 TO 1974
+2 PLAC Sheffield, England
+1 EVEN http://www.example-archive.org/sheffield/1900
+2 TYPE Birth register entry
+1 NOTE Founder of the Sheffield branch of the family. Worked as a blacksmith at the steel works. Scan: materials/skany/John_Smith_birth_1900.png Status: PROVEN.
+1 NOTE [CHANGELOG] 2026-07-09: imported from family records
+1 SOUR @S1@
+2 PAGE https://www.example-archive.org/record/john-smith-1900
+1 SOUR Smith family archive, oral history
+1 OBJE
+2 FILE materials/dossiers/John Smith.md
+3 FORM txt
+3 TITL Dossier (Obsidian note)
+1 OBJE
+2 FILE materials/skany/John_Smith_birth_1900.png
+3 FORM jpg
+3 TITL Birth record 1900
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Mary /Taylor/
+2 GIVN Mary
+2 SURN Taylor
+1 SEX F
+1 BIRT
+2 DATE ABT 1904
+2 PLAC Sheffield, England
+1 DEAT
+2 DATE 1981
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME William /Smith/
+2 GIVN William
+2 SURN Smith
+1 SEX M
+1 BIRT
+2 DATE 12 MAR 1928
+2 PLAC Sheffield, England
+1 DEAT
+2 DATE 5 JUN 1995
+1 OCCU Engineer
+1 FAMC @F1@
+1 FAMS @F2@
+0 @I4@ INDI
+1 NAME Margaret /Johnson/
+2 GIVN Margaret
+2 SURN Johnson
+1 SEX F
+1 BIRT
+2 DATE 1931
+2 PLAC Leeds, England
+1 DEAT
+2 DATE 2010
+1 OCCU Teacher
+1 FAMS @F2@
+0 @I5@ INDI
+1 NAME Alice /Smith/
+2 GIVN Alice
+2 SURN Smith
+1 SEX F
+1 BIRT
+2 DATE 1930
+2 PLAC Sheffield, England
+1 FAMC @F1@
+0 @I6@ INDI
+1 NAME George /Smith/
+2 GIVN George
+2 SURN Smith
+1 SEX M
+1 BIRT
+2 DATE 9 FEB 1960
+2 PLAC London, England
+1 OCCU Physician
+1 FAMC @F2@
+1 FAMS @F3@
+0 @I7@ INDI
+1 NAME Helen /Wright/
+2 GIVN Helen
+2 SURN Wright
+1 SEX F
+1 BIRT
+2 DATE 1962
+2 PLAC Edinburgh, Scotland
+1 OCCU Architect
+1 FAMS @F3@
+0 @I8@ INDI
+1 NAME David /Smith/
+2 GIVN David
+2 SURN Smith
+1 SEX M
+1 BIRT
+2 DATE 1985
+2 PLAC London, England
+1 OCCU Software developer
+1 FAMC @F3@
+0 @I9@ INDI
+1 NAME Anne /Smith/
+2 GIVN Anne
+2 SURN Smith
+1 SEX F
+1 BIRT
+2 DATE 1988
+2 PLAC London, England
+1 OCCU Journalist
+1 FAMC @F3@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 MARR
+2 DATE 1926
+1 CHIL @I3@
+1 CHIL @I5@
+0 @F2@ FAM
+1 HUSB @I3@
+1 WIFE @I4@
+1 MARR
+2 DATE 6 SEP 1955
+2 PLAC London, England
+1 CHIL @I6@
+0 @F3@ FAM
+1 HUSB @I6@
+1 WIFE @I7@
+1 MARR
+2 DATE 1983
+1 CHIL @I8@
+1 CHIL @I9@
+0 @S1@ SOUR
+1 AUTH Sheffield City Archives
+1 TITL Parish registers, ref. 3/1/42
+1 TEXT Birth record of John Smith, 1900
+0 TRLR

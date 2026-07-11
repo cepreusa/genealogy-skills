@@ -6,12 +6,13 @@ Pure Python standard library. Reuses the parser from the sibling
 Gramps, no Docker. Cyrillic-safe (UTF-8) and tolerant of MyHeritage exports.
 
 Usage:
-    PYTHONIOENCODING=utf-8 python3 report.py <file.ged> [output.html]
+    PYTHONIOENCODING=utf-8 python3 report.py <file.ged> [output.html] [--lang ru|en]
 
 If no output path is given, the report is written next to the .ged file as
 ``<name>.report.html``. Open it by double-clicking; it works offline (Chart.js
 graphs need the CDN, but every section has a table/SVG fallback that renders
-without a network connection).
+without a network connection). ``--lang`` sets the interface language; when
+omitted it is auto-detected from the names (Cyrillic -> Russian, else English).
 """
 
 import json
@@ -31,16 +32,204 @@ MONTHS = {
     "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
     "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
 }
-MONTH_NAMES_RU = ["", "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
-                  "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
 DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
+# --------------------------------------------------------------------------- #
+# UI localization
+# --------------------------------------------------------------------------- #
+# Interface strings for the dashboard (Russian + English). The chosen set — plus
+# the generator-side pieces below (month names, source-quality labels, anomaly
+# messages, the page title) — is injected into the page as ``metrics.i18n`` and
+# read by the template's JS instead of hard-coded text. Language is picked with
+# ``--lang`` or auto-detected from the people's names.
 QUAY_LABELS = {
-    "3": "Первичный (Proven)",
-    "2": "Вторичный (Probable)",
-    "1": "Сомнительный (Possible)",
-    "0": "Ненадёжный (Unproven)",
+    "ru": {
+        "3": "Первичный (Proven)",
+        "2": "Вторичный (Probable)",
+        "1": "Сомнительный (Possible)",
+        "0": "Ненадёжный (Unproven)",
+    },
+    "en": {
+        "3": "Primary (Proven)",
+        "2": "Secondary (Probable)",
+        "1": "Questionable (Possible)",
+        "0": "Unreliable (Unproven)",
+    },
 }
+
+MONTH_NAMES = {
+    "ru": ["", "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+           "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"],
+    "en": ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+}
+
+# Anomaly message templates (kept in the generator because the numbers are
+# computed here). ``{...}`` placeholders are filled with .format().
+ANOMALY = {
+    "ru": {
+        "death_before_birth": "{name}: год смерти ({dy}) раньше рождения ({by})",
+        "marriage_before_birth": "{label}: брак ({marr_y}) раньше рождения ({py})",
+        "mother_age": "{wn}: возраст матери {age} при рождении ребёнка ({cy})",
+    },
+    "en": {
+        "death_before_birth": "{name}: death year ({dy}) is before birth ({by})",
+        "marriage_before_birth": "{label}: marriage ({marr_y}) is before birth ({py})",
+        "mother_age": "{wn}: mother's age {age} at child's birth ({cy})",
+    },
+}
+
+I18N = {
+    "ru": {
+        "report_title": "Родословная",
+        "show_as_table": "Показать данные таблицей",
+        "no_data": "нет данных",
+        "decade_suffix_x": "-е",     # "1900-е"
+        # overview cards
+        "ov_people": "Людей", "ov_families": "Семей",
+        "ov_male": "Мужчин", "ov_female": "Женщин",
+        "ov_birth_years": "Годы рождения", "ov_generations": "Поколений",
+        "ov_avg_age": "Средний возраст", "ov_years_suffix": "лет",
+        "ov_children_per_family": "Детей на семью",
+        "ov_unique_surnames": "Уникальных фамилий",
+        # sex section
+        "sec_sex": "Пропорция полов",
+        "sec_sex_hint": "мужчины / женщины и по поколениям",
+        "sex_ratio": "Соотношение полов",
+        "sex_by_gen": "Полы по поколениям",
+        "male": "Мужчины", "female": "Женщины", "sex_unknown": "Не указан",
+        "col_sex": "Пол", "col_count": "Кол-во", "col_decade": "Декада",
+        "col_m": "М", "col_f": "Ж",
+        # clouds
+        "sec_clouds": "Облака имён", "sec_clouds_hint": "размер = частота",
+        "surnames": "Фамилии", "given_names": "Имена",
+        # trends
+        "sec_trends": "Мода на имена по декадам",
+        "sec_trends_hint": "топ-3 имени каждого десятилетия",
+        "no_birth_dates": "нет данных о датах рождения",
+        "col_decade2": "Десятилетие", "col_popular_names": "Популярные имена",
+        # births
+        "sec_births": "Рождения по десятилетиям",
+        "births": "Рождений",
+        # surnames chart
+        "sec_top_surnames": "Топ фамилий",
+        "col_surname": "Фамилия", "bearers": "Носителей",
+        # heatmap
+        "sec_birthday_cal": "Календарь дней рождения",
+        "sec_birthday_cal_hint": "месяц × день",
+        "less": "реже", "more": "чаще",
+        # longevity
+        "sec_longevity": "Долгожители",
+        "sec_longevity_hint": "по продолжительности жизни",
+        "no_lifespans": "нет пар дат рождения и смерти",
+        "col_hash": "#", "col_name": "Имя", "col_years": "Годы",
+        "col_age": "Возраст",
+        # families
+        "sec_big_families": "Самые большие семьи",
+        "sec_big_families_hint": "по числу детей",
+        "no_families_children": "нет семей с детьми",
+        "col_parents": "Родители", "col_children": "Детей",
+        # places
+        "sec_top_places": "Топ мест",
+        "col_place": "Место", "events": "Событий",
+        # timeline
+        "sec_timeline": "Лента событий",
+        "sec_timeline_hint": "рождения, браки, смерти",
+        "tl_all": "Все", "tl_births": "Рождения",
+        "tl_marriages": "Браки", "tl_deaths": "Смерти",
+        "no_events": "нет событий",
+        # quality
+        "sec_quality": "Проверка качества данных",
+        "sec_quality_hint": "для дальнейшего исследования",
+        "q_no_birth": "Без даты рождения", "q_no_death": "Без даты смерти",
+        "q_no_parents": "Без родителей", "q_singletons": "Одиночные записи",
+        "q_total_sources": "Всего источников",
+        "q_possible_anomalies": "Возможных аномалий",
+        "q_source_levels": "Уровни доказательности источников",
+        "col_level": "Уровень",
+        "q_date_anomalies": "Возможные аномалии дат",
+        "q_anomalies_help": "Это подсказки для проверки, а не ошибки — "
+                            "данные могли быть внесены приблизительно.",
+        "q_no_anomalies": "Явных аномалий дат не найдено",
+        # footer
+        "footer": 'Сгенерировано скиллом <b>gedcom-report</b> · без внешних '
+                  'зависимостей · графики Chart.js подгружаются из CDN, при '
+                  'отсутствии сети данные показаны таблицами',
+    },
+    "en": {
+        "report_title": "Family tree",
+        "show_as_table": "Show data as a table",
+        "no_data": "no data",
+        "decade_suffix_x": "s",      # "1900s"
+        "ov_people": "People", "ov_families": "Families",
+        "ov_male": "Male", "ov_female": "Female",
+        "ov_birth_years": "Birth years", "ov_generations": "Generations",
+        "ov_avg_age": "Average age", "ov_years_suffix": "yrs",
+        "ov_children_per_family": "Children per family",
+        "ov_unique_surnames": "Unique surnames",
+        "sec_sex": "Sex proportion",
+        "sec_sex_hint": "male / female and by generation",
+        "sex_ratio": "Sex ratio",
+        "sex_by_gen": "Sex by generation",
+        "male": "Male", "female": "Female", "sex_unknown": "Unspecified",
+        "col_sex": "Sex", "col_count": "Count", "col_decade": "Decade",
+        "col_m": "M", "col_f": "F",
+        "sec_clouds": "Name clouds", "sec_clouds_hint": "size = frequency",
+        "surnames": "Surnames", "given_names": "Given names",
+        "sec_trends": "Name trends by decade",
+        "sec_trends_hint": "top 3 names of each decade",
+        "no_birth_dates": "no birth-date data",
+        "col_decade2": "Decade", "col_popular_names": "Popular names",
+        "sec_births": "Births by decade",
+        "births": "Births",
+        "sec_top_surnames": "Top surnames",
+        "col_surname": "Surname", "bearers": "Bearers",
+        "sec_birthday_cal": "Birthday calendar",
+        "sec_birthday_cal_hint": "month × day",
+        "less": "less", "more": "more",
+        "sec_longevity": "Longest-lived",
+        "sec_longevity_hint": "by lifespan",
+        "no_lifespans": "no birth+death date pairs",
+        "col_hash": "#", "col_name": "Name", "col_years": "Years",
+        "col_age": "Age",
+        "sec_big_families": "Largest families",
+        "sec_big_families_hint": "by number of children",
+        "no_families_children": "no families with children",
+        "col_parents": "Parents", "col_children": "Children",
+        "sec_top_places": "Top places",
+        "col_place": "Place", "events": "Events",
+        "sec_timeline": "Event timeline",
+        "sec_timeline_hint": "births, marriages, deaths",
+        "tl_all": "All", "tl_births": "Births",
+        "tl_marriages": "Marriages", "tl_deaths": "Deaths",
+        "no_events": "no events",
+        "sec_quality": "Data quality check",
+        "sec_quality_hint": "for further research",
+        "q_no_birth": "No birth date", "q_no_death": "No death date",
+        "q_no_parents": "No parents", "q_singletons": "Isolated records",
+        "q_total_sources": "Total sources",
+        "q_possible_anomalies": "Possible anomalies",
+        "q_source_levels": "Source evidence levels",
+        "col_level": "Level",
+        "q_date_anomalies": "Possible date anomalies",
+        "q_anomalies_help": "These are hints to check, not errors — the data "
+                            "may have been entered approximately.",
+        "q_no_anomalies": "No obvious date anomalies found",
+        "footer": 'Generated by the <b>gedcom-report</b> skill · no external '
+                  'dependencies · Chart.js graphs load from a CDN; when offline '
+                  'the data is shown as tables',
+    },
+}
+
+_CYRILLIC_RE = re.compile(r"[\u0400-\u04FF]")
+
+
+def detect_lang(tree):
+    """Guess the UI language: Russian if any person's name has Cyrillic."""
+    for indi in tree.people.values():
+        if _CYRILLIC_RE.search(tree.name(indi) or ""):
+            return "ru"
+    return "en"
 
 
 # --------------------------------------------------------------------------- #
@@ -97,9 +286,11 @@ def given_surname(tree, indi):
 # Metric builders
 # --------------------------------------------------------------------------- #
 
-def build_metrics(tree):
+def build_metrics(tree, lang="ru"):
     people = tree.people
     families = tree.families
+    anomaly_msg = ANOMALY.get(lang, ANOMALY["ru"])
+    quay_labels = QUAY_LABELS.get(lang, QUAY_LABELS["ru"])
 
     sex_counts = {"M": 0, "F": 0, "U": 0}
     surname_counts = {}
@@ -163,8 +354,8 @@ def build_metrics(tree):
                     "death": dy, "age": age,
                 })
             elif age < 0:
-                anomalies.append(
-                    f"{tree.name(indi)}: год смерти ({dy}) раньше рождения ({by})")
+                anomalies.append(anomaly_msg["death_before_birth"].format(
+                    name=tree.name(indi), dy=dy, by=by))
 
         # Sources / evidence quality.
         for s in indi.children_by("SOUR"):
@@ -202,8 +393,8 @@ def build_metrics(tree):
                 p = people[tree.norm_id(ref)]
                 py = year_of(tree.event(p, "BIRT")["date"])
                 if marr_y and py and marr_y < py:
-                    anomalies.append(
-                        f"{label}: брак ({marr_y}) раньше рождения ({py})")
+                    anomalies.append(anomaly_msg["marriage_before_birth"].format(
+                        label=label, marr_y=marr_y, py=py))
 
         # Mother age at children's births.
         if wife and tree.norm_id(wife) in people:
@@ -216,14 +407,9 @@ def build_metrics(tree):
                         cy = year_of(tree.event(people[cid], "BIRT")["date"])
                         if cy:
                             age = cy - my
-                            if age < 13:
-                                anomalies.append(
-                                    f"{wn}: возраст матери {age} при рождении "
-                                    f"ребёнка ({cy})")
-                            elif age > 55:
-                                anomalies.append(
-                                    f"{wn}: возраст матери {age} при рождении "
-                                    f"ребёнка ({cy})")
+                            if age < 13 or age > 55:
+                                anomalies.append(anomaly_msg["mother_age"].format(
+                                    wn=wn, age=age, cy=cy))
 
     # Generation depth: BFS from roots (people without parents) downward.
     depth = generation_depth(tree)
@@ -280,7 +466,7 @@ def build_metrics(tree):
         "anomalies": anomalies[:60],
         "anomaly_total": len(anomalies),
         "sources_total": sour_total,
-        "quay": [{"level": QUAY_LABELS.get(k, f"QUAY {k}"), "count": v}
+        "quay": [{"level": quay_labels.get(k, f"QUAY {k}"), "count": v}
                  for k, v in sorted(quay_counts.items(), reverse=True)],
     }
 
@@ -311,6 +497,9 @@ def build_metrics(tree):
 
     return {
         "meta": meta,
+        "lang": lang,
+        "i18n": I18N.get(lang, I18N["ru"]),
+        "months": MONTH_NAMES.get(lang, MONTH_NAMES["ru"]),
         "overview": overview,
         "sex": {"M": sex_counts["M"], "F": sex_counts["F"],
                 "U": sex_counts["U"]},
@@ -416,27 +605,49 @@ def render(metrics, template_path):
     # The template ships a valid default (``/*__DATA__*/null``) so it parses on
     # its own; here we swap the whole marker for the real data.
     html = html.replace("/*__DATA__*/null", data_json)
-    html = html.replace("<!--__TITLE__-->",
-                        f"Родословная — {metrics['meta']['file']}")
+    strings = metrics.get("i18n", I18N["ru"])
+    title = f"{strings['report_title']} — {metrics['meta']['file']}"
+    html = html.replace("<!--__TITLE__-->", title)
     return html
 
 
 def main(argv):
-    if len(argv) < 2:
+    args = argv[1:]
+    lang = None            # None -> auto-detect from the data
+    positional = []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--lang":
+            i += 1
+            lang = args[i] if i < len(args) else None
+        elif a.startswith("--lang="):
+            lang = a.split("=", 1)[1]
+        else:
+            positional.append(a)
+        i += 1
+
+    if not positional:
         print(__doc__)
         return 2
-    path = argv[1]
+    if lang is not None and lang not in I18N:
+        print(f"unknown --lang '{lang}' (use ru|en)", file=sys.stderr)
+        return 1
+
+    path = positional[0]
     if not os.path.exists(path):
         print(f"file not found: {path}", file=sys.stderr)
         return 1
-    if len(argv) > 2:
-        out = argv[2]
+    if len(positional) > 1:
+        out = positional[1]
     else:
         base = os.path.splitext(path)[0]
         out = base + ".report.html"
 
     tree = gedcom.Tree(path)
-    metrics = build_metrics(tree)
+    if lang is None:
+        lang = detect_lang(tree)
+    metrics = build_metrics(tree, lang=lang)
     template = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "template.html")
     html = render(metrics, template)
@@ -452,6 +663,7 @@ def main(argv):
         "female": ov["female"],
         "years": [ov["year_min"], ov["year_max"]],
         "generations": ov["generations"],
+        "lang": lang,
     }, ensure_ascii=False))
     return 0
 

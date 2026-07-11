@@ -11,13 +11,15 @@ report of my tree"*, *"I have no tree yet, help me start one"* — and the agent
 does the rest. Pure Python 3 + `bash`: nothing to `pip install`, runs locally,
 UTF-8 / Cyrillic-safe.
 
-![Interactive tree viewer](docs/screenshots/tree.png)
+![Interactive tree viewer](docs/screenshots/tree.en.png)
 *gedcom-tree — interactive viewer*
 
-![Analytics dashboard](docs/screenshots/report.png)
+![Analytics dashboard](docs/screenshots/report.en.png)
 *gedcom-report — analytics dashboard*
 
-<sub>Both generated from the bundled fictional `examples/demo.ged`.</sub>
+<sub>Both generated from the bundled fictional `examples/demo.en.ged`. The UI is
+localized — Cyrillic trees render in Russian, Latin ones in English (or force it
+with `--lang ru|en`).</sub>
 
 ## The four skills
 

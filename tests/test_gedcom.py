@@ -249,6 +249,60 @@ class TreePrivateFlagTest(unittest.TestCase):
         self.assertEqual(prv["@I2@"]["residences"][0]["phone"], "99999")
 
 
+class LocalizationTest(unittest.TestCase):
+    """UI language: --lang override plus auto-detection from the names."""
+
+    def _load(self, skill, script, modname):
+        path = os.path.join(ROOT, "skills", skill, "scripts", script)
+        spec = importlib.util.spec_from_file_location(modname, path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_tree_and_report_have_ru_en_dicts(self):
+        for skill, script, modname in (
+            ("gedcom-tree", "tree.py", "treemod_i18n"),
+            ("gedcom-report", "report.py", "repmod_i18n"),
+        ):
+            mod = self._load(skill, script, modname)
+            self.assertIn("ru", mod.I18N)
+            self.assertIn("en", mod.I18N)
+            # both languages define exactly the same set of keys
+            self.assertEqual(set(mod.I18N["ru"]), set(mod.I18N["en"]),
+                             f"{skill}: ru/en string keys differ")
+
+    def test_tree_autodetect_language(self):
+        treemod = self._load("gedcom-tree", "tree.py", "treemod_lang")
+        cyr = {"a": {"name": "Иван Петров"}}
+        lat = {"a": {"name": "John Smith"}}
+        self.assertEqual(treemod.detect_lang(None, cyr), "ru")
+        self.assertEqual(treemod.detect_lang(None, lat), "en")
+
+    def test_report_autodetect_language(self):
+        repmod = self._load("gedcom-report", "report.py", "repmod_lang")
+        import gedcom  # importable via report.py's sys.path insert
+        en_demo = os.path.join(ROOT, "examples", "demo.en.ged")
+        ru_demo = os.path.join(ROOT, "examples", "demo.ged")
+        self.assertEqual(repmod.detect_lang(gedcom.Tree(en_demo)), "en")
+        self.assertEqual(repmod.detect_lang(gedcom.Tree(ru_demo)), "ru")
+
+    def test_report_metrics_carry_selected_language(self):
+        repmod = self._load("gedcom-report", "report.py", "repmod_metrics")
+        import gedcom  # importable via report.py's sys.path insert
+        m_en = repmod.build_metrics(gedcom.Tree(
+            os.path.join(ROOT, "examples", "demo.en.ged")), lang="en")
+        self.assertEqual(m_en["lang"], "en")
+        self.assertEqual(m_en["i18n"]["report_title"], "Family tree")
+        # month names localized
+        self.assertIn("Jan", m_en["months"])
+
+    def test_english_demo_parses(self):
+        demo = os.path.join(ROOT, "examples", "demo.en.ged")
+        stats = run_read(demo, "stats")
+        self.assertGreater(stats["people"], 0)
+        self.assertEqual(stats["charset"], "UTF-8")
+
+
 class ParserCopiesInSyncTest(unittest.TestCase):
     def test_three_copies_identical(self):
         copies = [

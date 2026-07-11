@@ -8,9 +8,10 @@ __pycache__/
 .venv/
 venv/
 
-# GEDCOM working files & generated output (keep examples/demo.ged, ignore the rest)
+# GEDCOM working files & generated output (keep the demo files, ignore the rest)
 *.ged
 !examples/demo.ged
+!examples/demo.en.ged
 *.bak-*.ged
 *.report.html
 *.tree.html
