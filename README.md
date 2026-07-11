@@ -11,10 +11,11 @@ report of my tree"*, *"I have no tree yet, help me start one"* — and the agent
 does the rest. Pure Python 3 + `bash`: nothing to `pip install`, runs locally,
 UTF-8 / Cyrillic-safe.
 
-|  |  |
-|---|---|
-| ![Interactive tree viewer](docs/screenshots/tree.png) | ![Analytics dashboard](docs/screenshots/report.png) |
-| *gedcom-tree — interactive viewer* | *gedcom-report — analytics dashboard* |
+![Interactive tree viewer](docs/screenshots/tree.png)
+*gedcom-tree — interactive viewer*
+
+![Analytics dashboard](docs/screenshots/report.png)
+*gedcom-report — analytics dashboard*
 
 <sub>Both generated from the bundled fictional `examples/demo.ged`.</sub>
 
