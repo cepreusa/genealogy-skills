@@ -576,14 +576,21 @@ const DATA = /*__DATA__*/null;
       (d.events && d.events.length) ||
       (d.occupations && d.occupations.length) ||
       (d.residences && d.residences.length) ||
+      (d.documents && d.documents.length) ||
       (d.links && ((d.links.urls||[]).length || (d.links.scans||[]).length));
   }
 
-  // Only allow safe link targets (block javascript:, data:, etc.).
+  // Only allow safe link targets (block javascript:, data:, etc.). Accepts web
+  // URLs, mailto:, and file references — relative vault paths as well as
+  // absolute local paths (turned into file:// so a double-click opens them).
   function safeUrl(u){
     u = String(u || "").trim();
-    return /^(https?:\/\/|mailto:|\.{0,2}\/|materials\/|skany\/)/i.test(u)
-      ? u : "";
+    if(!u) return "";
+    if(/^(https?:\/\/|mailto:|file:\/\/)/i.test(u)) return u;
+    if(/^[a-zA-Z]:[\\/]/.test(u)) return "file:///" + u.replace(/\\/g, "/"); // Windows
+    if(u.startsWith("/")) return "file://" + u;                              // POSIX abs
+    if(/^(\.{0,2}\/|materials\/|skany\/|[\w.\-]+\/)/.test(u)) return u;      // relative
+    return "";
   }
   function el(tag, cls, txt){
     const e = document.createElement(tag);
@@ -771,20 +778,36 @@ const DATA = /*__DATA__*/null;
     }
 
     // Documents / scans / external links
+    const docs = (d && d.documents) || [];        // OBJE/FILE attachments
     const urls = (d && d.links && d.links.urls) || [];
     const scans = (d && d.links && d.links.scans) || [];
     const evUrls = ((d && d.events) || []).filter(e => e.url).map(e => e.url);
     const allUrls = Array.from(new Set(urls.concat(evUrls)));
-    if(scans.length || allUrls.length){
+    // Avoid listing a scan twice if it's also an attached OBJE/FILE.
+    const docPaths = new Set(docs.map(x => x.path));
+    const extraScans = scans.filter(s => !docPaths.has(s));
+    function docIcon(path, form){
+      const s = (form || path || "").toLowerCase();
+      if(/\.(png|jpe?g|gif|tif?f|bmp)$/.test(s) || /jpe?g|png|image/.test(s)) return "🖼️";
+      if(/\.pdf$/.test(s) || s === "pdf") return "📕";
+      if(/\.(md|markdown|txt|rtf|docx?)$/.test(s) || /txt|md|doc/.test(s)) return "📝";
+      return "📄";
+    }
+    if(docs.length || extraScans.length || allUrls.length){
       section("Документы и ссылки");
-      for(const s of scans){
+      for(const doc of docs){
+        const name = doc.title || doc.path.split(/[\\/]/).pop();
+        const w = el("span", "doc");
+        w.appendChild(document.createTextNode(docIcon(doc.path, doc.form) + " "));
+        w.appendChild(linkEl(doc.path, name));
+        pbody.appendChild(w);
+      }
+      for(const s of extraScans){
         const name = s.split("/").pop();
-        pbody.appendChild(function(){
-          const w = el("span", "doc");
-          w.appendChild(document.createTextNode("📄 "));
-          w.appendChild(linkEl(s, name));
-          return w;
-        }());
+        const w = el("span", "doc");
+        w.appendChild(document.createTextNode("🖼️ "));
+        w.appendChild(linkEl(s, name));
+        pbody.appendChild(w);
       }
       for(const u of allUrls){
         const w = el("span", "doc");

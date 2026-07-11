@@ -210,6 +210,7 @@ class Tree:
         self.people = {}   # xref -> Node (INDI)
         self.families = {}  # xref -> Node (FAM)
         self.sources = {}  # xref -> Node (SOUR record)
+        self.objects = {}  # xref -> Node (OBJE multimedia record)
         self.header = None
         for rec in self.records:
             if rec.tag == "INDI" and rec.xref:
@@ -218,6 +219,8 @@ class Tree:
                 self.families[rec.xref] = rec
             elif rec.tag == "SOUR" and rec.xref:
                 self.sources[rec.xref] = rec
+            elif rec.tag == "OBJE" and rec.xref:
+                self.objects[rec.xref] = rec
             elif rec.tag == "HEAD":
                 self.header = rec
 
@@ -324,6 +327,41 @@ class Tree:
         return {"title": title, "author": author, "page": page,
                 "text": text, "url": url}
 
+    def _obje_files(self, obje):
+        """Yield {path, form, title} for each FILE inside an OBJE node."""
+        out = []
+        # An OBJE may hold several FILE entries, or a single FILE with FORM/TITL
+        # either under the FILE or under the OBJE itself (both forms exist).
+        files = obje.children_by("FILE")
+        if not files and (obje.value or "").strip():
+            files = [obje]  # tolerate "1 OBJE <path>" shorthand
+        for f in files:
+            path = (f.value or "").strip()
+            if not path:
+                continue
+            form = f.value_of("FORM") or obje.value_of("FORM")
+            title = f.value_of("TITL") or obje.value_of("TITL")
+            out.append({"path": path, "form": form, "title": title})
+        return out
+
+    def _documents_of(self, indi):
+        """Collect attached documents (OBJE/FILE) for an individual.
+
+        Handles inline ``1 OBJE`` blocks and pointers to a top-level ``@Oxx@``
+        OBJE record. Returns a list of {path, form, title}, de-duplicated by path.
+        """
+        docs, seen = [], set()
+        for obje in indi.children_by("OBJE"):
+            ref = (obje.value or "").strip()
+            node = obje
+            if ref.startswith("@"):
+                node = self.objects.get(self.norm_id(ref)) or obje
+            for d in self._obje_files(node):
+                if d["path"] not in seen:
+                    seen.add(d["path"])
+                    docs.append(d)
+        return docs
+
     def person_full(self, indi):
         data = self.person_brief(indi)
         # Death cause, if recorded.
@@ -367,6 +405,10 @@ class Tree:
         notes = [c.value for c in indi.children_by("NOTE") if c.value]
         data["notes"] = notes
         data["links"] = extract_links(notes)
+        # Attached multimedia objects (OBJE/FILE): scans, PDFs, or a linked
+        # dossier note (e.g. an Obsidian `.md` file). Both inline OBJE blocks and
+        # pointers to top-level `@Oxx@` OBJE records are handled.
+        data["documents"] = self._documents_of(indi)
         # Structured sources (resolved).
         data["sources"] = [self.source_ref(c)
                            for c in indi.children_by("SOUR")]

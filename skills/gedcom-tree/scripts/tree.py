@@ -98,7 +98,7 @@ def build_graph(tree):
 
 def build_details(tree, private=False):
     """Rich per-person detail for the info panel: notes, sources, residences,
-    events, links (URLs + scan paths), occupations.
+    events, links (URLs + scan paths), attached documents (OBJE/FILE), occupations.
 
     With ``private=True``, contact details (phone/email/street address) of people
     with no recorded death date (treated as possibly living) are stripped, so the
@@ -123,6 +123,7 @@ def build_details(tree, private=False):
             "occupations": d.get("occupations", []),
             "residences": residences,
             "links": d.get("links", {"urls": [], "scans": []}),
+            "documents": d.get("documents", []),
             "birth": d.get("birth", {}),
             "death": d.get("death", {}),
             "parents": d.get("parents", []),

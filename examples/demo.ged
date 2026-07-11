@@ -30,6 +30,14 @@
 1 SOUR @S1@
 2 PAGE https://www.example-archive.org/record/ivan-petrov-1900
 1 SOUR Семейный архив Петровых, устные воспоминания
+1 OBJE
+2 FILE materials/dossiers/Иван Петров.md
+3 FORM txt
+3 TITL Досье (заметка Obsidian)
+1 OBJE
+2 FILE materials/skany/Ivan_Petrov_metrika_1900.png
+3 FORM jpg
+3 TITL Метрика 1900
 1 FAMS @F1@
 0 @I2@ INDI
 1 NAME Анна /Соколова/

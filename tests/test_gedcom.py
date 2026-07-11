@@ -184,6 +184,21 @@ class PersonDetailTest(unittest.TestCase):
         # event carrying a URL
         self.assertTrue(any(e["url"] for e in d["events"]))
 
+    def test_documents_from_obje_file(self):
+        mod = _load_gedcom_module()
+        demo = os.path.join(ROOT, "examples", "demo.ged")
+        tree = mod.Tree(demo)
+        d = tree.person_full(tree.people["@I1@"])
+        docs = d["documents"]
+        paths = [x["path"] for x in docs]
+        # the Obsidian .md dossier attached via OBJE/FILE must be present
+        self.assertTrue(any(p.endswith(".md") for p in paths),
+                        "expected a .md dossier document from OBJE/FILE")
+        md = next(x for x in docs if x["path"].endswith(".md"))
+        self.assertTrue(md["title"], "document should carry its TITL")
+        # de-duplicated by path
+        self.assertEqual(len(paths), len(set(paths)))
+
     def test_source_pointer_resolution(self):
         mod = _load_gedcom_module()
         demo = os.path.join(ROOT, "examples", "demo.ged")
