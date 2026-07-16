@@ -15,7 +15,13 @@
   html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,
     "Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);
     background:var(--bg);overflow:hidden}
-  #bar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;
+  #privacy-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:60;
+    padding:6px 16px;font-size:.8rem;line-height:1.35;text-align:center;
+    background:#7c2d12;color:#fed7aa;border-bottom:1px solid #9a3412}
+#privacy-banner.on{display:block}
+#privacy-banner.share{background:#14532d;color:#bbf7d0;border-bottom-color:#166534}
+body.has-banner #bar{top:30px}
+#bar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;
     align-items:center;gap:12px;padding:0 16px;background:var(--panel);
     border-bottom:1px solid var(--line);z-index:10;
     box-shadow:0 1px 4px rgba(0,0,0,.06)}
@@ -140,6 +146,7 @@
 </style>
 </head>
 <body>
+<div id="privacy-banner" role="note"></div>
 <div id="bar">
   <h1 id="title">Tree</h1>
   <span class="sub" id="counts"></span>
@@ -226,6 +233,17 @@ const DATA = /*__DATA__*/null;
     });
   }
   applyStaticI18n();
+
+  // Privacy banner — driven by the mode computed in Python (no client-side hiding).
+  (function(){
+    var mode = DATA && DATA.privacy && DATA.privacy.mode;
+    if(mode === "private" || mode === "share"){
+      var b = document.getElementById("privacy-banner");
+      b.textContent = T(mode === "share" ? "privacy_share" : "privacy_private");
+      b.className = "on" + (mode === "share" ? " share" : "");
+      document.body.classList.add("has-banner");
+    }
+  })();
 
   if(!DATA || !DATA.people || !Object.keys(DATA.people).length){
     document.getElementById("empty").style.display = "flex";

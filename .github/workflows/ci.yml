@@ -25,7 +25,9 @@ jobs:
             skills/gedcom-reader/scripts/gedcom.py \
             skills/gedcom-reader/scripts/gedcom_write.py \
             skills/gedcom-report/scripts/report.py \
-            skills/gedcom-tree/scripts/tree.py
+            skills/gedcom-report/scripts/privacy.py \
+            skills/gedcom-tree/scripts/tree.py \
+            skills/gedcom-tree/scripts/privacy.py
 
       - name: Run test suite
         env:
@@ -48,6 +50,16 @@ jobs:
             echo "::error::gedcom.py copies diverged ($a / $b / $c)"; exit 1
           fi
           echo "parser copies in sync: $a"
+
+      - name: Check the two privacy.py copies are in sync
+        run: |
+          set -e
+          p=$(md5sum skills/gedcom-tree/scripts/privacy.py   | cut -d' ' -f1)
+          q=$(md5sum skills/gedcom-report/scripts/privacy.py | cut -d' ' -f1)
+          if [ "$p" != "$q" ]; then
+            echo "::error::privacy.py copies diverged ($p / $q)"; exit 1
+          fi
+          echo "privacy copies in sync: $p"
 
       - name: Check committed download-skills/*.zip match the source skills
         run: |

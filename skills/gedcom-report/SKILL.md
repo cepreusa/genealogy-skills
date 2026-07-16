@@ -38,7 +38,7 @@ Run the bundled generator with `bash` (set `PYTHONIOENCODING=utf-8` so Cyrillic
 is handled correctly):
 
 ```bash
-PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.html] [--lang ru|en]
+PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.html] [--private | --share] [--lang ru|en]
 ```
 
 `<skill-dir>` is this skill's own directory wherever it is installed (e.g.
@@ -46,6 +46,14 @@ PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.
 
 - If you omit `output.html`, the report is written next to the `.ged` file as
   `<name>.report.html`.
+- **Privacy (mutually exclusive), for sharing the dashboard:**
+  - `--private` keeps names/surnames and aggregate counts but excludes exact
+    birthdays (heatmap), places, named lifespans, and family-event/timeline
+    entries of **possibly-living** people. A banner states it is **not anonymous**.
+  - `--share` omits possibly-living and unknown-status people entirely; every
+    statistic is recomputed over the historical subset and the source filename is
+    hidden. Generation **aborts** if a payload audit finds protected data leaked.
+    Use this to publish the dashboard publicly.
 - `--lang ru|en` sets the interface language; when omitted it is **auto-detected**
   from the names (any Cyrillic → Russian, otherwise English). Only the dashboard's
   own labels are translated — the data itself is shown as-is.

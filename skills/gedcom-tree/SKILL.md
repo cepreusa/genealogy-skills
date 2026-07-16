@@ -45,7 +45,7 @@ Run the bundled generator with `bash` (set `PYTHONIOENCODING=utf-8` so Cyrillic
 is handled correctly):
 
 ```bash
-PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.html] [--focus <id|name>] [--private] [--lang ru|en]
+PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.html] [--focus <id|name>] [--private | --share] [--lang ru|en]
 ```
 
 `<skill-dir>` is this skill's own directory wherever it is installed (e.g.
@@ -56,9 +56,20 @@ PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/tree.py <file.ged> [output.ht
   An ambiguous name is rejected with the list of matches — show it and ask.
 - With no `--focus`, the viewer opens on the **most-connected** person (the one
   with the largest surrounding family), which is usually a sensible centre.
-- `--private` strips contact details (phone, email, street address) of people
-  with **no recorded death date** (treated as possibly living), so the exported
-  HTML doesn't leak personal contact info. Use it when sharing the file.
+- **Privacy — two levels (mutually exclusive), for sharing the file:**
+  - `--private` is an *identified family view*: names, year-level dates and the
+    family graph stay, but sensitive details of **possibly-living** people (exact
+    dates, places, occupations, contacts, notes, sources, events, documents and
+    scan links) — and the marriage date of any family they belong to — are
+    removed. A banner states the file is **not anonymous**.
+  - `--share` is a *fail-closed historical export*: possibly-living and
+    unknown-status people are **omitted entirely** (with every reference to
+    them), the info panel is disabled, and the source filename is hidden.
+    Generation **aborts** if a payload audit finds any protected data leaked
+    through. Use this to publish a tree publicly.
+  - "Possibly living" is decided conservatively (no death evidence + born within
+    ~110 years, a recent marriage/child, or unknown status). Prefer `--share`
+    when handing the HTML to people outside the family.
 - `--lang ru|en` sets the interface language. When omitted it is **auto-detected**
   from the names: any Cyrillic → Russian, otherwise English. Only the UI chrome
   is translated — the people's own names/places are shown exactly as in the file.

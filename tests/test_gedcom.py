@@ -242,11 +242,13 @@ class TreePrivateFlagTest(unittest.TestCase):
         prv = treemod.build_details(tree, private=True)
         # public keeps the living person's phone
         self.assertEqual(pub["@I1@"]["residences"][0]["phone"], "12345")
-        # private strips it
-        self.assertEqual(prv["@I1@"]["residences"][0]["phone"], "")
-        self.assertEqual(prv["@I1@"]["residences"][0]["email"], "")
-        # deceased person's contact is retained even in private mode
-        self.assertEqual(prv["@I2@"]["residences"][0]["phone"], "99999")
+        # private empties a possibly-living person's detail entirely (stronger
+        # than blanking single fields): no residences, notes, sources survive.
+        self.assertEqual(prv["@I1@"]["residences"], [])
+        self.assertEqual(prv["@I1@"]["notes"], [])
+        # a deceased person keeps their residence, but contacts are still blanked.
+        self.assertEqual(prv["@I2@"]["residences"][0]["place"], "City")
+        self.assertEqual(prv["@I2@"]["residences"][0]["phone"], "")
 
 
 class LocalizationTest(unittest.TestCase):
