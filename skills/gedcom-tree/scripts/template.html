@@ -612,6 +612,9 @@ const DATA = /*__DATA__*/null;
     const d = detailOf(id);
     if(!d) return false;
     return (d.notes && d.notes.length) || (d.sources && d.sources.length) ||
+      (d.facts && d.facts.some(f => (f.citations||[]).length)) ||
+      (d.record_sources && d.record_sources.length) ||
+      (d.associates && d.associates.length) ||
       (d.events && d.events.length) ||
       (d.occupations && d.occupations.length) ||
       (d.residences && d.residences.length) ||
@@ -799,27 +802,42 @@ const DATA = /*__DATA__*/null;
       }
     }
 
-    // Sources
-    if(d && d.sources && d.sources.length){
-      const srcs = d.sources.filter(s =>
-        s.title || s.author || s.page || s.text || s.url);
-      if(srcs.length){
-        section(T("sec_sources"));
-        for(const s of srcs){
-          const box = el("div", "src");
-          const head = [s.author, s.title].filter(Boolean).join(" — ");
-          if(head) box.appendChild(el("div", "ti", head));
-          // QUAY is the submitter's own assessment, not a GPS proof status.
-          if(s.quay){
-            const chip = el("span", "chip", "QUAY " + s.quay);
-            chip.title = T("quay_note");
-            box.appendChild(chip);
-          }
-          if(s.url) box.appendChild(linkEl(s.url, s.url));
-          else if(s.page) box.appendChild(el("div", null, s.page));
-          if(s.text) box.appendChild(el("div", "muted", s.text));
-          pbody.appendChild(box);
-        }
+    // Sources — fact-level citations first (each tied to its fact), then the
+    // record-level citations kept separate: a person-level SOUR does not
+    // implicitly support every fact.
+    function srcBox(s, factLabel){
+      const box = el("div", "src");
+      if(factLabel) box.appendChild(el("span", "chip", factLabel));
+      const head = [s.author, s.title].filter(Boolean).join(" — ");
+      if(head) box.appendChild(el("div", "ti", head));
+      // QUAY is the submitter's own assessment, not a GPS proof status.
+      if(s.quay){
+        const chip = el("span", "chip", "QUAY " + s.quay);
+        chip.title = T("quay_note");
+        box.appendChild(chip);
+      }
+      if(s.url) box.appendChild(linkEl(s.url, s.url));
+      else if(s.page) box.appendChild(el("div", null, s.page));
+      if(s.text) box.appendChild(el("div", "muted", s.text));
+      pbody.appendChild(box);
+    }
+    const hasCite = s => s && (s.title || s.author || s.page || s.text || s.url || s.quay);
+    const factCites = [];
+    for(const f of (d && d.facts) || []){
+      for(const c of (f.citations || [])){
+        if(hasCite(c)) factCites.push([f, c]);
+      }
+    }
+    const recSrcs = ((d && (d.record_sources || d.sources)) || []).filter(hasCite);
+    if(factCites.length || recSrcs.length){
+      section(T("sec_sources"));
+      for(const [f, c] of factCites){
+        srcBox(c, f.tag + (f.date ? " " + f.date : ""));
+      }
+      if(recSrcs.length){
+        if(factCites.length)
+          pbody.appendChild(el("div", "muted", T("src_record_level")));
+        for(const s of recSrcs) srcBox(s);
       }
     }
 
@@ -884,12 +902,12 @@ const DATA = /*__DATA__*/null;
       const hint = el("div", "muted", T("associates_note"));
       pbody.appendChild(hint);
       for(const a of d.associates){
-        const label = a.relation
-          ? a.name + " — " + a.relation
-          : a.name;
+        const nm = a.name || a.id || "?";   // unresolved pointer: show the id
+        const label = a.relation ? nm + " — " + a.relation : nm;
         const b = el("span", "rel", label);
         if(a.direction === "inbound") b.title = T("assoc_inbound");
-        b.addEventListener("click", () => { setFocus(a.id); openPanel(a.id); });
+        if(P[a.id])
+          b.addEventListener("click", () => { setFocus(a.id); openPanel(a.id); });
         pbody.appendChild(b);
       }
     }

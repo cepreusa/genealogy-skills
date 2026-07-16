@@ -227,6 +227,15 @@
       <div id="qAnomalies" style="margin-top:18px"></div>
     </div>
   </section>
+
+  <!-- 13. Scan-manifest integrity (only rendered when --manifest was given) -->
+  <section id="s-scans" style="display:none">
+    <h2><span data-i18n="sec_scans"></span> <span class="hint" data-i18n="sec_scans_hint"></span></h2>
+    <div class="panel">
+      <div class="grid q-grid" id="scCards"></div>
+      <div id="scProblems" style="margin-top:18px"></div>
+    </div>
+  </section>
 </main>
 <footer id="footer"></footer>
 
@@ -510,6 +519,7 @@ renderCloud("cloudGiven", DATA.cloud_given);
     [T("q_no_birth"),q.no_birth],[T("q_no_death"),q.no_death],
     [T("q_no_parents"),q.no_parents],[T("q_singletons"),q.isolated],
     [T("q_citations"),q.citations_total],
+    [T("q_record_level"),q.record_level_citations],
     [T("q_facts_cited"),q.facts_cited+" / "+q.facts_total],
     [T("q_coverage"),cov],
     [T("q_possible_anomalies"),q.anomaly_total],
@@ -539,6 +549,37 @@ renderCloud("cloudGiven", DATA.cloud_given);
       "<ul class='anom'>"+q.anomalies.map(a=>`<li>${esc(a)}</li>`).join("")+"</ul>";
   } else {
     an.innerHTML = `<span class="badge ok">${esc(T("q_no_anomalies"))}</span>`;
+  }
+})();
+
+// ---- 13. scan-manifest integrity (present only with --manifest) ----
+(function(){
+  const sc = DATA.scan_check;
+  if(!sc) return;
+  document.getElementById("s-scans").style.display = "";
+  const stateLabels = {
+    verified:T("sc_verified"), missing:T("sc_missing"),
+    mismatch:T("sc_mismatch"), unmanifested:T("sc_unmanifested"),
+    unchecked:T("sc_unchecked"), "invalid-path":T("sc_invalid"),
+    "unsupported-algorithm":T("sc_unsupported"), "external-url":T("sc_external"),
+  };
+  const cards = [[T("sc_referenced"), sc.referenced]];
+  for(const [state,label] of Object.entries(stateLabels)){
+    if(sc.states && sc.states[state]) cards.push([label, sc.states[state]]);
+  }
+  document.getElementById("scCards").innerHTML = cards.map(([l,v])=>
+    `<div class="card"><div class="num">${v}</div><div class="lbl">${esc(l)}</div></div>`).join("");
+  const pr = document.getElementById("scProblems");
+  if(sc.problems && sc.problems.length){
+    const rows = sc.problems.map(p=>[
+      esc(stateLabels[p.state]||p.state),
+      p.path ? esc(p.path) : "<i>"+esc(T("sc_paths_hidden"))+"</i>"]);
+    pr.innerHTML =
+      "<h3 style='margin:0 0 8px;font-size:1rem'>"+esc(T("sc_problems"))+
+      " <span class='badge warn'>"+sc.problems.length+"</span></h3>"+
+      tbl([T("col_state"),T("col_path")], rows, [null,null]);
+  } else {
+    pr.innerHTML = "";
   }
 })();
 </script>

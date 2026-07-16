@@ -87,6 +87,7 @@ I18N = {
         "sec_residence": "Проживание",
         "sec_notes": "Заметки",
         "sec_sources": "Источники",
+        "src_record_level": "На уровне записи (не привязаны к факту):",
         "sec_documents": "Документы и ссылки",
         "sec_parents": "Родители",
         "sec_spouses": "Супруг(а)",
@@ -140,6 +141,7 @@ I18N = {
         "sec_residence": "Residence",
         "sec_notes": "Notes",
         "sec_sources": "Sources",
+        "src_record_level": "Record-level (not tied to a fact):",
         "sec_documents": "Documents & links",
         "sec_parents": "Parents",
         "sec_spouses": "Spouse(s)",
@@ -168,6 +170,22 @@ I18N = {
 }
 
 _CYRILLIC_RE = re.compile(r"[\u0400-\u04FF]")
+_URL_SCRUB_RE = re.compile(r"(?:https?://|mailto:|file://)\S+", re.IGNORECASE)
+
+
+def _scrub_urls(obj):
+    """Recursively remove URL substrings from every string in a structure.
+
+    Private mode blanks dedicated ``url`` fields, but a URL can also sit inside
+    free text (a citation PAGE/TEXT, a note). This scrubber removes those too.
+    """
+    if isinstance(obj, str):
+        return _URL_SCRUB_RE.sub("", obj).strip()
+    if isinstance(obj, dict):
+        return {k: _scrub_urls(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_scrub_urls(v) for v in obj]
+    return obj
 
 
 def detect_lang(tree, people):
@@ -235,7 +253,7 @@ def build_graph(tree, ctx=None):
             "place": (birth["place"] or "").strip(),
             "occ": (indi.value_of("OCCU") or "").strip(),
             "fams": [tree.norm_id(c.value) for c in indi.children_by("FAMS")
-                     if c.value and included(tree.norm_id(c.value)) is not False],
+                     if c.value],
             "famc": [tree.norm_id(c.value) for c in indi.children_by("FAMC")
                      if c.value],
         }
@@ -284,6 +302,13 @@ def build_graph(tree, ctx=None):
             "marr": marr,
         }
 
+    # Drop references to families that did not survive the export (share mode
+    # removes families whose every member was omitted), so the payload never
+    # carries dangling family ids.
+    for entry in people.values():
+        entry["fams"] = [f for f in entry["fams"] if f in families]
+        entry["famc"] = [f for f in entry["famc"] if f in families]
+
     return people, families
 
 
@@ -318,13 +343,17 @@ def build_details(tree, private=False, ctx=None):
         """Associates of xid whose other person is disclosed in this export.
 
         ASSO links are social/evidentiary (witness, godparent, informant), not
-        pedigree edges. In private/share modes we drop any associate the viewer
-        isn't allowed to see, and never expose a protected person's contacts.
+        pedigree edges. In share mode omitted people are excluded; in private
+        mode associations to a possibly-living (protected) person are dropped
+        too — an ASSO label like "informant" is a new fact about them.
         """
         out = []
         for a in assoc_index.get(xid, []):
             oid = a["other_id"]
             if ctx and not ctx.include_person(oid):
+                continue
+            if ctx and mode == "private" and ctx.is_protected(oid):
+                ctx.record("associations")
                 continue
             out.append({
                 "id": oid,
@@ -346,10 +375,13 @@ def build_details(tree, private=False, ctx=None):
                 "notes": [], "sources": [], "events": [], "occupations": [],
                 "residences": [], "links": {"urls": [], "scans": []},
                 "documents": [], "birth": {}, "death": {},
+                "facts": [], "record_sources": [],
                 "parents": _relatives_visible(d.get("parents", []), ctx),
                 "spouses": _relatives_visible(d.get("spouses", []), ctx),
                 "children": _relatives_visible(d.get("children", []), ctx),
-                "associates": visible_associates(xid),
+                # A protected person's own ASSO links (either direction) are
+                # facts about a possibly-living person — not disclosed.
+                "associates": [],
             }
             ctx.record("notes"); ctx.record("dates")
             continue
@@ -373,17 +405,21 @@ def build_details(tree, private=False, ctx=None):
         # implicitly support every fact).
         facts = tree.facts_of(indi, "INDI", xid)
         record_srcs = tree.record_sources(indi)
+        notes = d.get("notes", [])
         if mode == "private":
-            # Strip machine paths and URLs even for the deceased.
-            sources = [dict(s, url="") for s in sources]
-            record_srcs = [dict(s, url="") for s in record_srcs]
-            facts = [dict(f, citations=[dict(c, url="") for c in f["citations"]])
-                     for f in facts]
-            events = [dict(e, url="") for e in events]
+            # Strip machine paths and URLs even for the deceased — both the
+            # dedicated url fields and URL substrings inside free text.
+            sources = _scrub_urls([dict(s, url="") for s in sources])
+            record_srcs = _scrub_urls([dict(s, url="") for s in record_srcs])
+            facts = _scrub_urls(
+                [dict(f, citations=[dict(c, url="") for c in f["citations"]])
+                 for f in facts])
+            events = _scrub_urls([dict(e, url="") for e in events])
+            notes = _scrub_urls(notes)
             links = {"urls": [], "scans": []}
             documents = []
         details[xid] = {
-            "notes": d.get("notes", []),
+            "notes": notes,
             "sources": sources,
             "facts": facts,
             "record_sources": record_srcs,
@@ -463,10 +499,16 @@ def resolve_focus(tree, people, query):
 def render(payload, template_path, title):
     with open(template_path, "r", encoding="utf-8") as fh:
         html = fh.read()
-    data_json = json.dumps(payload, ensure_ascii=False)
-    data_json = data_json.replace("</", "<\\/")  # never break </script>
-    html = html.replace("/*__DATA__*/null", data_json)
+    # The title marker is consumed first, on the pristine template, so data
+    # that happens to contain the marker string stays inert JSON text.
     html = html.replace("<!--__TITLE__-->", title)
+    data_json = json.dumps(payload, ensure_ascii=False)
+    # Guard against "</script>" and "<!--" inside data breaking the script tag
+    # (both valid escapes inside JSON strings, where any "<" must live).
+    data_json = data_json.replace("</", "<\\/")
+    data_json = re.sub(r"<(?=!--|script)", "\\\\u003c", data_json,
+                       flags=re.IGNORECASE)
+    html = html.replace("/*__DATA__*/null", data_json)
     return html
 
 

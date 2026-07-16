@@ -112,6 +112,11 @@ class QuayLabelTest(unittest.TestCase):
             self.assertNotIn(bad, text,
                              f"report.py QUAY labels still say {bad!r}")
         self.assertIn("submitter assessment", text)
+        # The Russian labels must stay neutral too.
+        self.assertIn("оценка автора", text)
+        for bad_ru in ["Доказано", "Вероятно", "Возможно (QUAY"]:
+            self.assertNotIn(bad_ru, text,
+                             f"report.py Russian QUAY labels say {bad_ru!r}")
 
 
 class BehaviorFixtureTest(unittest.TestCase):
@@ -150,6 +155,8 @@ class BehaviorFixtureTest(unittest.TestCase):
                             f"{name} has no forbidden_behaviors")
             self.assertNotIn(fx["id"], seen, f"duplicate fixture id {fx['id']}")
             seen.add(fx["id"])
+            self.assertEqual(fx["id"], os.path.splitext(name)[0],
+                             f"{name}: fixture id must match the filename")
 
     def test_required_categories_present(self):
         cats = {fx["category"] for _, fx in self._load_all()}

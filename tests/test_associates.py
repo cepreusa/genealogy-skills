@@ -13,8 +13,11 @@ Covers:
   the path-traversal / absolute-path guards.
 """
 
+import hashlib
 import importlib.util
+import json
 import os
+import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -69,6 +72,24 @@ class AssociationTest(unittest.TestCase):
         index, unresolved = tree.association_index()
         self.assertEqual(index, {})
         self.assertEqual(unresolved, [])
+
+    def test_dangling_asso_pointer(self):
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "a.ged")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write("0 HEAD\n1 CHAR UTF-8\n"
+                     "0 @I1@ INDI\n1 NAME A /B/\n"
+                     "1 ASSO @I99@\n2 RELA witness\n0 TRLR\n")
+        tree = GEDCOM.Tree(p)
+        a = tree.associations_of(tree.people["@I1@"])
+        self.assertEqual(len(a), 1)
+        self.assertFalse(a[0]["resolved"])
+        self.assertEqual(a[0]["to_name"], "")
+        index, unresolved = tree.association_index()
+        self.assertEqual(len(unresolved), 1)
+        self.assertEqual(unresolved[0]["to_id"], "@I99@")
+        # The dangling target never gains an inbound entry.
+        self.assertNotIn("@I99@", index)
 
 
 class ReportAssociatesTest(unittest.TestCase):
@@ -156,6 +177,90 @@ class ScanManifestTest(unittest.TestCase):
         self.assertEqual(sc["states"].get("mismatch"), 1)
         # missing.png is referenced in the NOTE and listed in the manifest.
         self.assertEqual(sc["states"].get("missing"), 1)
+
+    def test_report_scan_check_hides_paths_when_asked(self):
+        report = _load("report", os.path.join(REPORT, "report.py"))
+        tree = GEDCOM.Tree(os.path.join(self.mdir, "scans.ged"))
+        sc = report.build_scan_check(
+            tree, os.path.join(self.mdir, "manifest.json"), do_hash=True,
+            include_paths=False)
+        self.assertFalse(sc["paths_included"])
+        self.assertTrue(all(p["path"] == "" for p in sc["problems"]))
+        self.assertTrue(all(p["state"] for p in sc["problems"]))
+
+
+class ManifestHardeningTest(unittest.TestCase):
+    """The manifest itself must not be able to escape its own directory."""
+
+    def _write_manifest(self, d, data):
+        p = os.path.join(d, "manifest.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        return p
+
+    def test_absolute_base_rejected(self):
+        d = tempfile.mkdtemp()
+        p = self._write_manifest(d, {"base": "/", "files": []})
+        with self.assertRaises(ValueError):
+            GEDCOM.load_scan_manifest(p)
+
+    def test_escaping_base_rejected(self):
+        d = tempfile.mkdtemp()
+        p = self._write_manifest(d, {"base": "../..", "files": []})
+        with self.assertRaises(ValueError):
+            GEDCOM.load_scan_manifest(p)
+
+    def test_backslash_and_drive_paths_rejected(self):
+        d = tempfile.mkdtemp()
+        p = self._write_manifest(d, {"base": ".", "files": []})
+        m = GEDCOM.load_scan_manifest(p)
+        self.assertIsNone(GEDCOM._safe_join(m["root"], m["base"],
+                                            "..\\..\\etc\\passwd"))
+        self.assertIsNone(GEDCOM._safe_join(m["root"], m["base"],
+                                            "C:\\Windows\\evil.png"))
+
+    def test_hash_mismatch_detected(self):
+        d = tempfile.mkdtemp()
+        scan = os.path.join(d, "s.png")
+        with open(scan, "wb") as fh:
+            fh.write(b"actual-bytes")
+        p = self._write_manifest(d, {
+            "base": ".",
+            "files": [{"path": "s.png", "size": len(b"actual-bytes"),
+                       "sha256": hashlib.sha256(b"other-bytes").hexdigest()}],
+        })
+        m = GEDCOM.load_scan_manifest(p)
+        r = GEDCOM.verify_scan(m, "s.png", do_hash=True)
+        self.assertEqual(r["state"], "mismatch")
+
+    def test_unsupported_algorithm_never_verifies(self):
+        d = tempfile.mkdtemp()
+        scan = os.path.join(d, "s.png")
+        with open(scan, "wb") as fh:
+            fh.write(b"bytes")
+        p = self._write_manifest(d, {
+            "base": ".", "algorithm": "md5",
+            "files": [{"path": "s.png", "size": 5, "sha256": "aa" * 32}],
+        })
+        m = GEDCOM.load_scan_manifest(p)
+        r = GEDCOM.verify_scan(m, "s.png", do_hash=True)
+        self.assertEqual(r["state"], "unsupported-algorithm")
+
+    def test_fam_and_sour_documents_collected(self):
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "f.ged")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write("0 HEAD\n1 CHAR UTF-8\n"
+                     "0 @I1@ INDI\n1 NAME A /B/\n1 FAMS @F1@\n"
+                     "0 @F1@ FAM\n1 HUSB @I1@\n"
+                     "1 OBJE\n2 FILE scans/marriage.png\n"
+                     "0 @S1@ SOUR\n1 TITL Register\n"
+                     "1 OBJE\n2 FILE scans/register.pdf\n"
+                     "0 TRLR\n")
+        tree = GEDCOM.Tree(p)
+        paths = tree.all_document_paths()
+        self.assertIn("scans/marriage.png", paths)
+        self.assertIn("scans/register.pdf", paths)
 
 
 if __name__ == "__main__":

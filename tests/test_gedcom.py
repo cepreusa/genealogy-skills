@@ -349,6 +349,26 @@ class OfflineReportTest(unittest.TestCase):
         self.assertNotIn("/*__DATA__*/null", html)    # data injected
         self.assertNotIn("<!--__TITLE__-->", html)    # title injected
 
+    def test_marker_strings_in_data_stay_inert(self):
+        # GEDCOM data containing the template markers or script-breaking
+        # sequences must not expand the library twice or close the script tag.
+        repmod = self._load_report()
+        template = os.path.join(ROOT, "skills", "gedcom-report", "scripts",
+                                "template.html")
+        evil = "/*__CHARTJS__*/ </script> <!--__TITLE__--> <SCRIPT>"
+        metrics = {"meta": {"file": evil}, "i18n": repmod.I18N["ru"]}
+        html = repmod.render(metrics, template)
+        # Library inlined exactly once, not into the data.
+        self.assertEqual(html.count("window.Chart="), 1)
+        data_line = next(l for l in html.splitlines()
+                         if l.startswith("const DATA"))
+        low = data_line.lower()
+        self.assertNotIn("</script", low)
+        self.assertNotIn("<script", low)
+        self.assertNotIn("<!--", data_line)
+        # The marker text survives as inert JSON, not as an expansion.
+        self.assertIn("/*__CHARTJS__*/", data_line)
+
     def test_missing_vendor_degrades_gracefully(self):
         # _load_chartjs returns '' when the file is absent; render still works.
         repmod = self._load_report()
@@ -384,7 +404,7 @@ class AuditTest(unittest.TestCase):
 
     def test_schema_and_clean_fixture(self):
         r = self._audit("audit-clean")
-        self.assertEqual(r["schema_version"], 1)
+        self.assertEqual(r["schema_version"], 2)
         for key in ("ok", "summary", "metrics", "issues", "file"):
             self.assertIn(key, r)
         self.assertTrue(r["ok"])
@@ -463,6 +483,84 @@ class AuditTest(unittest.TestCase):
     def test_demo_audits_clean(self):
         r = run_read(os.path.join(ROOT, "examples", "demo.ged"), "audit")
         self.assertTrue(r["ok"], r["issues"])
+
+
+def _temp_ged(body):
+    """Write a minimal GEDCOM (HEAD/TRLR added) to a temp file, return path."""
+    d = tempfile.mkdtemp()
+    p = os.path.join(d, "t.ged")
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write("0 HEAD\n1 CHAR UTF-8\n" + body + "0 TRLR\n")
+    return p
+
+
+class AuditEdgeCaseTest(unittest.TestCase):
+    """Regressions from review: date bounds, calendars, case, deep chains."""
+
+    def _codes(self, path):
+        return sorted({i["code"] for i in run_read(path, "audit")["issues"]})
+
+    def test_overlapping_death_range_not_flagged(self):
+        # DEAT may extend past BIRT (1899..1950 vs 1900) — no false positive.
+        p = _temp_ged("0 @I1@ INDI\n1 NAME A /B/\n1 BIRT\n2 DATE 1900\n"
+                      "1 DEAT\n2 DATE BET 1899 AND 1950\n")
+        self.assertNotIn("date.death_before_birth", self._codes(p))
+
+    def test_unambiguous_death_before_birth_flagged(self):
+        p = _temp_ged("0 @I1@ INDI\n1 NAME A /B/\n1 BIRT\n2 DATE 1900\n"
+                      "1 DEAT\n2 DATE BET 1800 AND 1890\n")
+        self.assertIn("date.death_before_birth", self._codes(p))
+
+    def test_calendar_escape_after_qualifier_not_flagged(self):
+        # "ABT @#DHEBREW@ 5660" is legal GEDCOM; 5660 is not a Gregorian year.
+        p = _temp_ged("0 @I1@ INDI\n1 NAME A /B/\n"
+                      "1 BIRT\n2 DATE ABT @#DHEBREW@ 5660\n"
+                      "1 DEAT\n2 DATE 1910\n")
+        self.assertNotIn("date.death_before_birth", self._codes(p))
+
+    def test_lowercase_xrefs_no_false_danglings(self):
+        # @i1@ and @I1@ spellings are the same record for the index — the audit
+        # must not report dangling/empty-family cascades.
+        p = _temp_ged("0 @i1@ INDI\n1 NAME A /B/\n1 SEX M\n1 FAMS @f1@\n"
+                      "0 @F1@ FAM\n1 HUSB @I1@\n")
+        codes = self._codes(p)
+        for bad in ("link.fams_dangling", "link.husb_dangling",
+                    "link.fams_missing_reverse", "link.spouse_missing_reverse",
+                    "family.empty"):
+            self.assertNotIn(bad, codes)
+
+    def test_deep_parent_chain_no_recursion_error(self):
+        # A 1500-generation chain must not blow the recursion limit.
+        n = 1500
+        lines = []
+        for i in range(1, n + 1):
+            lines.append(f"0 @I{i}@ INDI\n1 NAME P{i} /X/\n")
+            if i < n:                       # child in F{i} (parent is I{i+1})
+                lines.append(f"1 FAMC @F{i}@\n")
+            if i > 1:                       # parent in F{i-1}
+                lines.append(f"1 FAMS @F{i - 1}@\n")
+        for i in range(1, n):
+            lines.append(f"0 @F{i}@ FAM\n1 HUSB @I{i + 1}@\n1 CHIL @I{i}@\n")
+        p = _temp_ged("".join(lines))
+        r = run_read(p, "audit")   # check=True would raise on a crash
+        self.assertNotIn("pedigree.cycle",
+                         {i["code"] for i in r["issues"]})
+
+    def test_self_parent_reported_once_not_as_cycle(self):
+        p = _temp_ged("0 @I1@ INDI\n1 NAME A /B/\n1 FAMC @F1@\n1 FAMS @F1@\n"
+                      "0 @F1@ FAM\n1 HUSB @I1@\n1 CHIL @I1@\n")
+        r = run_read(p, "audit")
+        codes = [i["code"] for i in r["issues"]]
+        self.assertIn("pedigree.self_parent", codes)
+        self.assertNotIn("pedigree.cycle", codes)
+
+    def test_empty_link_value_warns_not_a_pointer(self):
+        p = _temp_ged("0 @I1@ INDI\n1 NAME A /B/\n1 FAMS\n"
+                      "0 @F1@ FAM\n1 HUSB I1\n1 WIFE @I1@\n")
+        r = run_read(p, "audit")
+        nap = [i for i in r["issues"] if i["code"] == "link.not_a_pointer"]
+        self.assertEqual(len(nap), 2)   # empty FAMS + non-pointer HUSB
+        self.assertTrue(all(i["severity"] == "warning" for i in nap))
 
 
 class ProvenanceTest(unittest.TestCase):

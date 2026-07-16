@@ -29,7 +29,7 @@ a deceased person by mistake over exposing a living one.
 import datetime
 import re
 
-HEURISTIC_VERSION = "living-v1"
+HEURISTIC_VERSION = "living-v2"
 LIVING_AGE_LIMIT = 110       # born within this many years -> treat as maybe-living
 RECENT_MARRIAGE_LIMIT = 95   # own marriage within this many years -> maybe-living
 RECENT_CHILD_LIMIT = 80      # child born within this many years -> maybe-living
@@ -48,13 +48,30 @@ _RESN_RE = re.compile(r"privacy|confidential|locked", re.IGNORECASE)
 
 
 def _year(value):
+    """Latest plausible year in a date value, or None.
+
+    Uses the *latest* year of a range (``BET 1900 AND 1960`` -> 1960) so that a
+    person who may have been born recently is classified as possibly living —
+    the conservative direction for every caller (birth, marriage, child birth).
+    """
     if not value:
         return None
     v = value.strip().upper()
-    if v.startswith("@#"):          # non-Gregorian calendar — don't guess
+    if "@#" in v:                   # non-Gregorian calendar — don't guess
         return None
     years = [int(y) for y in _YEAR_RE.findall(v)]
-    return min(years) if years else None
+    return max(years) if years else None
+
+
+def _has_substance(node):
+    """True when an event node actually asserts something.
+
+    A bare ``1 DEAT`` with no value and no sub-records is a placeholder some
+    exporters emit; treating it as death evidence would be anti-conservative.
+    """
+    if node is None:
+        return False
+    return bool((node.value or "").strip() or node.children)
 
 
 def _flag_yes(indi, tag):
@@ -76,10 +93,12 @@ def classify_person(tree, indi, as_of_year):
     if deat is not None and (deat.value or "").strip().upper() == "N":
         return LIKELY_LIVING, "DEAT N"
 
-    # 3. Explicit death evidence (a DEAT node, even without a date, or BURI/CREM).
-    if deat is not None:
+    # 3. Explicit death evidence: a DEAT that asserts something (a value such as
+    #    Y, or any sub-record like DATE/PLAC), or a substantive BURI/CREM.
+    #    A bare placeholder node with no value and no children is NOT evidence.
+    if _has_substance(deat):
         return DECEASED, "DEAT present"
-    if indi.child("BURI") is not None or indi.child("CREM") is not None:
+    if _has_substance(indi.child("BURI")) or _has_substance(indi.child("CREM")):
         return DECEASED, "burial/cremation"
 
     # 4. Birth/christening year.

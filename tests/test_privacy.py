@@ -47,6 +47,8 @@ GED = f"""0 HEAD
 1 DEAT
 2 DATE 1910
 1 FAMS @F1@
+1 ASSO @I9@
+2 RELA witness
 0 @I2@ INDI
 1 NAME Old /Elder/
 1 SEX F
@@ -146,6 +148,45 @@ class ClassifyTest(unittest.TestCase):
         c2 = self._cls(as_of=1990 + 111)
         self.assertEqual(c2["@I9@"], self.privacy.PRESUMED_DECEASED)
 
+    def _cls_with(self, replace_from, replace_to, as_of=2026):
+        ged2 = GED.replace(replace_from, replace_to)
+        d = tempfile.mkdtemp(); p = os.path.join(d, "r.ged")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(ged2)
+        t = self.gedcom.Tree(p)
+        return {k: v["class"]
+                for k, v in self.privacy.classify_people(t, as_of).items()}
+
+    def test_range_birth_uses_latest_year(self):
+        # BET 1900 AND 1980: the person may have been born in 1980 — must be
+        # treated as possibly living, not classified off the earliest year.
+        c = self._cls_with("2 DATE 12 MAR 1990", "2 DATE BET 1900 AND 1980")
+        self.assertEqual(c["@I9@"], self.privacy.LIKELY_LIVING)
+        # A range that is old on both ends stays presumed deceased.
+        c2 = self._cls_with("2 DATE 12 MAR 1990", "2 DATE BET 1700 AND 1800")
+        self.assertEqual(c2["@I9@"], self.privacy.PRESUMED_DECEASED)
+
+    def test_bare_deat_placeholder_is_not_death_evidence(self):
+        # A bare "1 DEAT" with no value/date is a placeholder, not evidence:
+        # with a recent birth the person must stay protected.
+        ged2 = GED.replace("1 OCCU Engineer", "1 OCCU Engineer\n1 DEAT")
+        d = tempfile.mkdtemp(); p = os.path.join(d, "b.ged")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(ged2)
+        t = self.gedcom.Tree(p)
+        c = {k: v["class"]
+             for k, v in self.privacy.classify_people(t, 2026).items()}
+        self.assertEqual(c["@I9@"], self.privacy.LIKELY_LIVING)
+        # But "1 DEAT Y" (an asserted death) is evidence.
+        ged3 = GED.replace("1 OCCU Engineer", "1 OCCU Engineer\n1 DEAT Y")
+        p3 = os.path.join(d, "y.ged")
+        with open(p3, "w", encoding="utf-8") as fh:
+            fh.write(ged3)
+        t3 = self.gedcom.Tree(p3)
+        c3 = {k: v["class"]
+              for k, v in self.privacy.classify_people(t3, 2026).items()}
+        self.assertEqual(c3["@I9@"], self.privacy.DECEASED)
+
 
 class TreePrivacyPayloadTest(unittest.TestCase):
     def setUp(self):
@@ -208,6 +249,80 @@ class TreePrivacyPayloadTest(unittest.TestCase):
         # @F1@ is all-deceased -> keeps its marriage year.
         self.assertIsNotNone(payload["families"]["@F1@"]["marr"])
 
+    def test_private_drops_associations_to_protected(self):
+        # @I1@ (deceased) names @I9@ (living) as a witness. In private mode the
+        # association is a fact about a living person — dropped both ways.
+        payload, _ = self._payload("private")
+        self.assertEqual(payload["details"]["@I1@"]["associates"], [])
+        self.assertEqual(payload["details"][LIVING_ID]["associates"], [])
+        payload_none, _ = self._payload("none")
+        self.assertEqual(len(payload_none["details"]["@I1@"]["associates"]), 1)
+
+    def test_share_has_no_dangling_family_refs(self):
+        payload, _ = self._payload("share")
+        fids = set(payload["families"])
+        for p in payload["people"].values():
+            for fid in p["fams"] + p["famc"]:
+                self.assertIn(fid, fids)
+
+    def test_private_scrubs_urls_inside_citation_text(self):
+        # A URL inside a note/citation string (not just the url field) must be
+        # scrubbed in private mode.
+        ged2 = GED.replace(
+            "1 NAME Great /Elder/",
+            "1 NAME Great /Elder/\n1 NOTE see https://secret.example/x.png")
+        d = tempfile.mkdtemp(); p = os.path.join(d, "u.ged")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(ged2)
+        tree = self.gedcom.Tree(p)
+        ctx = self.privacy.PrivacyContext(tree, "private")
+        details = self.tree_mod.build_details(tree, ctx=ctx)
+        blob = json.dumps(details, ensure_ascii=False)
+        self.assertNotIn("secret.example", blob)
+
+
+class ReportSharePrivacyTest(unittest.TestCase):
+    """Report --share: family aggregates must cover the historical subset only."""
+
+    def setUp(self):
+        self.report = _load("report_mod", REPORT_PY, REPORT_DIR)
+        self.privacy = _load("privacy_r", os.path.join(REPORT_DIR, "privacy.py"),
+                             REPORT_DIR)
+        import gedcom
+        self.gedcom = gedcom
+        self.ged = write_ged()
+
+    def _ctx(self, tree, mode):
+        return self.privacy.PrivacyContext(tree, mode)
+
+    def test_share_timeline_hides_spouseless_family_marriage(self):
+        # A family whose only disclosed member set contains a protected child
+        # must not leak its marriage year — even with no recorded spouses.
+        ged2 = GED.replace("0 TRLR", "0 @F3@ FAM\n1 CHIL @I9@\n1 MARR\n"
+                                     "2 DATE 2015\n2 PLAC Hidden City\n0 TRLR")
+        d = tempfile.mkdtemp(); p = os.path.join(d, "s.ged")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(ged2)
+        tree = self.gedcom.Tree(p)
+        ctx = self._ctx(tree, "share")
+        timeline = self.report.build_timeline(tree, ctx)
+        years = {e["year"] for e in timeline if e["type"] == "marriage"}
+        self.assertNotIn(2015, years)
+        # @F2@ has a protected child too -> its 1988 marriage is hidden as well.
+        self.assertNotIn(1988, years)
+        # The all-deceased @F1@ marriage stays.
+        self.assertIn(1882, years)
+
+    def test_share_children_counts_exclude_omitted(self):
+        tree = self.gedcom.Tree(self.ged)
+        ctx = self._ctx(tree, "share")
+        m = self.report.build_metrics(tree, lang="en", ctx=ctx)
+        # @F2@'s only child is the living person -> no family with children
+        # besides @F1@ (1 child), and totals must not count the omitted child.
+        fams = {f["family"]: f["children"] for f in m["biggest_families"]}
+        self.assertTrue(all(c == 1 for c in fams.values()), fams)
+        self.assertEqual(m["overview"]["avg_children"], 0.5)  # 1 child / 2 fams
+
 
 class PayloadAuditTest(unittest.TestCase):
     def setUp(self):
@@ -262,6 +377,16 @@ class CliPrivacyTest(unittest.TestCase):
         self.assertEqual(d["privacy_mode"], "share")
         html = open(self.out, encoding="utf-8").read()
         for canary in (CANARY_PLACE, LIVING_ID):
+            self.assertNotIn(canary, html)
+
+    def test_report_private(self):
+        d, rc = self._run(REPORT_PY, "--private")
+        self.assertEqual(rc, 0)
+        self.assertEqual(d["privacy_mode"], "private")
+        html = open(self.out, encoding="utf-8").read()
+        # Places/contacts of the possibly-living person stay out even though
+        # names remain (identified view).
+        for canary in (CANARY_PLACE, CANARY_PHONE, CANARY_EMAIL, CANARY_NOTE):
             self.assertNotIn(canary, html)
 
     def test_mutually_exclusive_and_unknown(self):

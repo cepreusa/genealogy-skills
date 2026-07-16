@@ -107,11 +107,13 @@ double-clicking, e.g.:
 - **Detail panel:** each card with extra data shows a small **ⓘ badge**; clicking
   it opens a side panel with the person's full record — facts (birth/death with
   cause), occupations, residences, **notes** (with PROVEN/PROBABLE/… status
-  chips, and a foldaway changelog), **sources** (author/title + clickable
-   archive links), **documents & scans** (note-embedded `materials/skany/*.png`
-   paths and URLs become links), clickable **relatives**, and **associated
-   people** to jump around. The panel is keyboard-friendly (Esc closes).
-   Clicking the card itself still re-centres, as before.
+  chips, and a foldaway changelog), **sources** — fact-level citations shown
+  first, each labelled with the fact (e.g. `BIRT 1900`) it supports, then the
+  record-level citations kept visually separate (a person-level `SOUR` does not
+  cover every fact) — **documents & scans** (note-embedded
+  `materials/skany/*.png` paths and URLs become links), clickable **relatives**,
+  and **associated people** to jump around. The panel is keyboard-friendly
+  (Esc closes). Clicking the card itself still re-centres, as before.
 - **Associated people (ASSO/RELA):** the panel lists a person's associates —
   witnesses, godparents, informants, officiants and the like — under a separate
   *Связанные лица / Associated people* heading with the relation label and an

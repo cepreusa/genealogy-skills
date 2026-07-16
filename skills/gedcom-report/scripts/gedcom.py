@@ -218,15 +218,17 @@ class Tree:
         self.sources = {}  # xref -> Node (SOUR record)
         self.objects = {}  # xref -> Node (OBJE multimedia record)
         self.header = None
+        # Keys are normalized (uppercased @X@) so lookups via norm_id() always
+        # match, even when a file mixes @i1@ / @I1@ spellings.
         for rec in self.records:
             if rec.tag == "INDI" and rec.xref:
-                self.people[rec.xref] = rec
+                self.people[self.norm_id(rec.xref)] = rec
             elif rec.tag == "FAM" and rec.xref:
-                self.families[rec.xref] = rec
+                self.families[self.norm_id(rec.xref)] = rec
             elif rec.tag == "SOUR" and rec.xref:
-                self.sources[rec.xref] = rec
+                self.sources[self.norm_id(rec.xref)] = rec
             elif rec.tag == "OBJE" and rec.xref:
-                self.objects[rec.xref] = rec
+                self.objects[self.norm_id(rec.xref)] = rec
             elif rec.tag == "HEAD":
                 self.header = rec
 
@@ -378,21 +380,31 @@ class Tree:
         """Every distinct local document/scan path referenced in the tree.
 
         Combines OBJE/FILE attachments with scan paths mentioned in NOTE/EVEN
-        text. External URLs are excluded. Order-preserved, de-duplicated. Used
-        by the optional scan-manifest integrity check.
+        text, across INDI, FAM and SOUR records (a marriage scan attached to the
+        family, or a scan attached to the source record itself, counts too).
+        External URLs are excluded. Order-preserved, de-duplicated. Used by the
+        optional scan-manifest integrity check.
         """
         seen, out = set(), []
-        for indi in self.people.values():
-            for d in self._documents_of(indi):
+
+        def harvest(record):
+            for d in self._documents_of(record):
                 p = d["path"]
                 if p and not re.match(r"^https?://", p, re.I) and p not in seen:
                     seen.add(p)
                     out.append(p)
-            note_texts = [n.value for n in indi.children_by("NOTE") if n.value]
+            note_texts = [n.value for n in record.children_by("NOTE") if n.value]
             for p in extract_links(note_texts)["scans"]:
                 if p not in seen:
                     seen.add(p)
                     out.append(p)
+
+        for indi in self.people.values():
+            harvest(indi)
+        for fam in self.families.values():
+            harvest(fam)
+        for src in self.sources.values():
+            harvest(src)
         return out
 
     def person_full(self, indi):
@@ -691,7 +703,7 @@ class Tree:
 # audit command still exits 0 when findings exist (a completed audit succeeded);
 # a non-zero exit is reserved for being unable to run.
 
-AUDIT_SCHEMA_VERSION = 1
+AUDIT_SCHEMA_VERSION = 2
 
 _XREF_RE = re.compile(r"^@[^@\s]+@$")
 _SEVERITY_RANK = {"error": 0, "warning": 1, "info": 2}
@@ -718,7 +730,7 @@ def _year_bounds(value):
     if not value:
         return (None, None)
     v = value.strip().upper()
-    if v.startswith("@#"):  # explicit non-Gregorian calendar — don't guess
+    if "@#" in v:  # explicit non-Gregorian calendar (any position) — don't guess
         return (None, None)
     years = [int(y) for y in re.findall(r"\b(\d{3,4})\b", v)]
     if not years:
@@ -778,9 +790,7 @@ def _audit_structure(tree, issues):
         nodes = []
         _walk(rec, rec.tag, nodes)
         for path, node in nodes:
-            parent_level = node.level - 1
-            # find nearest ancestor via path depth is expensive; instead flag
-            # any node whose level is not a sensible step. We reconstruct the
+            # Flag any node whose level is not a sensible step: reconstruct the
             # expected level from the number of path segments below the record.
             depth = path.count(".")
             if node.level != depth:
@@ -814,9 +824,12 @@ def _audit_xrefs(tree, issues, dup_ids):
                 "error", "xref.malformed",
                 f"malformed XREF id {rec.xref!r}",
                 record=rec.xref, record_type=rec.tag, value=rec.xref))
-        if rec.xref in seen:
-            dup_ids.add(rec.xref)
-        seen.setdefault(rec.xref, []).append(rec.tag)
+        # Compare ids in normalized form (@X@ uppercased) — the index treats
+        # @i1@ and @I1@ as the same record, so the audit must too.
+        nid = Tree.norm_id(rec.xref)
+        if nid in seen:
+            dup_ids.add(nid)
+        seen.setdefault(nid, []).append(rec.tag)
     for xid, tags in sorted(seen.items()):
         if len(tags) > 1:
             issues.append(_make_issue(
@@ -836,12 +849,20 @@ def _audit_links(tree, issues, dup_ids):
             record=rec.xref, record_type=rec.tag, path=path,
             value=ref, related=[ref]))
 
+    def note_not_pointer(rec, path, raw):
+        issues.append(_make_issue(
+            "warning", "link.not_a_pointer",
+            f"{rec.xref}: {path} value {raw!r} is empty or not an "
+            f"@xref@ pointer",
+            record=rec.xref, record_type=rec.tag, path=path, value=raw or ""))
+
     for xid, indi in people.items():
         if xid in dup_ids:
             continue
         for fs in indi.children_by("FAMS"):
             ref = _pointer(fs.value)
             if not ref:
+                note_not_pointer(indi, "INDI.FAMS", fs.value)
                 continue
             fid = tree.norm_id(ref)
             if fid not in families:
@@ -860,6 +881,7 @@ def _audit_links(tree, issues, dup_ids):
         for fc in indi.children_by("FAMC"):
             ref = _pointer(fc.value)
             if not ref:
+                note_not_pointer(indi, "INDI.FAMC", fc.value)
                 continue
             fid = tree.norm_id(ref)
             if fid not in families:
@@ -890,6 +912,7 @@ def _audit_links(tree, issues, dup_ids):
             for r in refs:
                 ref = _pointer(r.value)
                 if not ref:
+                    note_not_pointer(fam, "FAM." + role, r.value)
                     continue
                 iid = tree.norm_id(ref)
                 spouses.append(iid)
@@ -911,6 +934,7 @@ def _audit_links(tree, issues, dup_ids):
         for c in fam.children_by("CHIL"):
             ref = _pointer(c.value)
             if not ref:
+                note_not_pointer(fam, "FAM.CHIL", c.value)
                 continue
             cid = tree.norm_id(ref)
             child_ids.append(cid)
@@ -1022,12 +1046,15 @@ def _audit_dates(tree, issues):
     for xid, indi in tree.people.items():
         blo, bhi = yr(indi, "BIRT")
         dlo, dhi = yr(indi, "DEAT")
-        if bhi is not None and dlo is not None and dlo < blo:
+        # Conservative: flag only when even the LATEST possible death year is
+        # before the EARLIEST possible birth year, so overlapping ranges
+        # (e.g. BIRT 1900 / DEAT BET 1899 AND 1950) never false-positive.
+        if blo is not None and dhi is not None and dhi < blo:
             issues.append(_make_issue(
                 "warning", "date.death_before_birth",
-                f"{xid}: death year {dlo} is before birth year {blo}",
+                f"{xid}: death year {dhi} is before birth year {blo}",
                 record=xid, record_type="INDI",
-                details={"birth_year": blo, "death_year": dlo}))
+                details={"birth_year": blo, "death_year": dhi}))
 
     for fid, fam in tree.families.items():
         mlo, mhi = _year_bounds(fam.value_of("MARR", "DATE"))
@@ -1067,27 +1094,40 @@ def _audit_cycles(tree, issues):
     color = {}
     reported = set()
 
-    def visit(pid, stack):
-        color[pid] = GREY
-        stack.append(pid)
-        for par in tree.parents_of(pid):
-            if color.get(par, WHITE) == GREY:
-                key = tuple(sorted((pid, par)))
-                if key not in reported:
-                    reported.add(key)
-                    issues.append(_make_issue(
-                        "error", "pedigree.cycle",
-                        f"ancestry cycle involving {par} and {pid}",
-                        record=par, record_type="INDI", related=[pid],
-                        details={"between": list(key)}))
-            elif color.get(par, WHITE) == WHITE:
-                visit(par, stack)
-        stack.pop()
-        color[pid] = BLACK
+    def visit(root):
+        # Iterative DFS (an explicit stack) so a corrupt file with an extremely
+        # deep parent chain cannot blow the recursion limit — the audit is the
+        # tool meant to diagnose exactly such files.
+        stack = [(root, iter(tree.parents_of(root)))]
+        color[root] = GREY
+        while stack:
+            pid, parents = stack[-1]
+            advanced = False
+            for par in parents:
+                c = color.get(par, WHITE)
+                if c == GREY:
+                    if par == pid:
+                        continue  # self-parent: reported as pedigree.self_parent
+                    key = tuple(sorted((pid, par)))
+                    if key not in reported:
+                        reported.add(key)
+                        issues.append(_make_issue(
+                            "error", "pedigree.cycle",
+                            f"ancestry cycle involving {par} and {pid}",
+                            record=par, record_type="INDI", related=[pid],
+                            details={"between": list(key)}))
+                elif c == WHITE:
+                    color[par] = GREY
+                    stack.append((par, iter(tree.parents_of(par))))
+                    advanced = True
+                    break
+            if not advanced:
+                color[pid] = BLACK
+                stack.pop()
 
     for xid in tree.people:
         if color.get(xid, WHITE) == WHITE:
-            visit(xid, [])
+            visit(xid)
     for xid, indi in tree.people.items():
         parents = tree.parents_of(xid)
         if xid in parents:
@@ -1219,10 +1259,22 @@ import os        # noqa: E402  (only the manifest feature needs the filesystem)
 
 
 def load_scan_manifest(path):
-    """Load a scan manifest JSON. Returns {base, algorithm, files:{path:meta}}."""
+    """Load a scan manifest JSON. Returns {base, algorithm, files:{path:meta}}.
+
+    The manifest's own ``base`` is validated the same way as file paths: it must
+    stay inside the manifest's directory. An absolute base or a parent-escaping
+    base (``"/"`,` ``"../.."``) would defeat the whole point of the sandbox, so
+    it raises ValueError instead of being trusted.
+    """
     with open(path, "r", encoding="utf-8") as fh:
         data = json.load(fh)
-    base = data.get("base", ".")
+    root = os.path.dirname(os.path.abspath(path))
+    base = (data.get("base", ".") or ".").replace("\\", "/").strip() or "."
+    if base.startswith("/") or (len(base) > 1 and base[1] == ":"):
+        raise ValueError(f"manifest base {base!r} is absolute — not allowed")
+    anchored = os.path.normpath(os.path.join(root, base))
+    if not (anchored == root or anchored.startswith(root + os.sep)):
+        raise ValueError(f"manifest base {base!r} escapes the manifest directory")
     files = {}
     for entry in data.get("files", []):
         p = (entry.get("path") or "").replace("\\", "/").strip()
@@ -1230,8 +1282,8 @@ def load_scan_manifest(path):
             files[p] = entry
     return {
         "base": base,
-        "algorithm": data.get("algorithm", "sha256"),
-        "root": os.path.dirname(os.path.abspath(path)),
+        "algorithm": (data.get("algorithm") or "sha256").lower(),
+        "root": root,
         "files": files,
     }
 
@@ -1268,6 +1320,10 @@ def verify_scan(manifest, relpath, do_hash=False):
         return result
     exp_hash = entry.get("sha256")
     if do_hash and exp_hash:
+        if manifest.get("algorithm", "sha256") != "sha256":
+            # Never silently verify with the wrong algorithm.
+            result["state"] = "unsupported-algorithm"
+            return result
         h = hashlib.sha256()
         with open(full, "rb") as fh:
             for chunk in iter(lambda: fh.read(65536), b""):

@@ -57,12 +57,15 @@ PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.
 - `--lang ru|en` sets the interface language; when omitted it is **auto-detected**
   from the names (any Cyrillic → Russian, otherwise English). Only the dashboard's
   own labels are translated — the data itself is shown as-is.
-- `--manifest scans.json` (optional, ignored in `--share`) verifies every local
-  document/scan referenced in the tree against a sidecar JSON manifest and adds a
-  small integrity summary (verified / missing / size-mismatch / unmanifested).
-  Add `--verify-hash` to also check SHA-256. The manifest lists `{path, size,
-  sha256}` relative to a `base`; absolute paths and parent-directory escapes are
-  rejected, and external `http(s)` URLs are reported as external, not missing.
+- `--manifest scans.json` (optional, ignored in `--share` with a stderr note)
+  verifies every local document/scan referenced in the tree (INDI, FAM and SOUR
+  records) against a sidecar JSON manifest and renders a **Document integrity**
+  section (verified / missing / size-mismatch / unmanifested, plus a problem
+  list). Add `--verify-hash` to also check SHA-256. The manifest lists `{path,
+  size, sha256}` relative to a `base`; absolute paths, parent-directory escapes
+  and an escaping `base` itself are rejected, and external `http(s)` URLs are
+  reported as external, not missing. In `--private` the counts are shown but
+  file paths are hidden.
 - The script prints a small JSON summary (people, families, M/F, year range,
   generations) — use it to tell the user what was built.
 - It ships its own copy of the parser (`scripts/gedcom.py`) and also falls back
