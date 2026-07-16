@@ -91,6 +91,11 @@ I18N = {
         "sec_parents": "Родители",
         "sec_spouses": "Супруг(а)",
         "sec_children": "Дети",
+        "sec_associates": "Связанные лица",
+        "associates_note": "Свидетели, крёстные, информанты и т. п. — "
+                           "социальные/доказательные связи (ASSO), а не "
+                           "кровное родство.",
+        "assoc_inbound": "Этот человек указал текущего как связанное лицо.",
         "changelog": "История изменений",  # "История изменений (N)"
         "recenter": "↺ В центр дерева",
         "role_father": "отец",
@@ -137,8 +142,13 @@ I18N = {
         "sec_sources": "Sources",
         "sec_documents": "Documents & links",
         "sec_parents": "Parents",
-        "sec_spouses": "Spouse",
+        "sec_spouses": "Spouse(s)",
         "sec_children": "Children",
+        "sec_associates": "Associated people",
+        "associates_note": "Witnesses, godparents, informants, etc. — "
+                           "social/evidentiary links (ASSO), not blood "
+                           "kinship.",
+        "assoc_inbound": "This person named the current one as an associate.",
         "changelog": "Change log",
         "recenter": "↺ Center the tree",
         "role_father": "father",
@@ -302,6 +312,28 @@ def build_details(tree, private=False, ctx=None):
     if mode == "share":
         return {}
 
+    assoc_index, _ = tree.association_index()
+
+    def visible_associates(xid):
+        """Associates of xid whose other person is disclosed in this export.
+
+        ASSO links are social/evidentiary (witness, godparent, informant), not
+        pedigree edges. In private/share modes we drop any associate the viewer
+        isn't allowed to see, and never expose a protected person's contacts.
+        """
+        out = []
+        for a in assoc_index.get(xid, []):
+            oid = a["other_id"]
+            if ctx and not ctx.include_person(oid):
+                continue
+            out.append({
+                "id": oid,
+                "name": a["other_name"],
+                "relation": a["relation"],
+                "direction": a["direction"],
+            })
+        return out
+
     details = {}
     for xid, indi in tree.people.items():
         if ctx and not ctx.include_person(xid):
@@ -317,6 +349,7 @@ def build_details(tree, private=False, ctx=None):
                 "parents": _relatives_visible(d.get("parents", []), ctx),
                 "spouses": _relatives_visible(d.get("spouses", []), ctx),
                 "children": _relatives_visible(d.get("children", []), ctx),
+                "associates": visible_associates(xid),
             }
             ctx.record("notes"); ctx.record("dates")
             continue
@@ -364,6 +397,7 @@ def build_details(tree, private=False, ctx=None):
             "parents": _relatives_visible(d.get("parents", []), ctx),
             "spouses": _relatives_visible(d.get("spouses", []), ctx),
             "children": _relatives_visible(d.get("children", []), ctx),
+            "associates": visible_associates(xid),
         }
     return details
 

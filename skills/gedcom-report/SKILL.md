@@ -38,7 +38,7 @@ Run the bundled generator with `bash` (set `PYTHONIOENCODING=utf-8` so Cyrillic
 is handled correctly):
 
 ```bash
-PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.html] [--private | --share] [--lang ru|en]
+PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.html] [--private | --share] [--lang ru|en] [--manifest scans.json [--verify-hash]]
 ```
 
 `<skill-dir>` is this skill's own directory wherever it is installed (e.g.
@@ -57,6 +57,12 @@ PYTHONIOENCODING=utf-8 python3 <skill-dir>/scripts/report.py <file.ged> [output.
 - `--lang ru|en` sets the interface language; when omitted it is **auto-detected**
   from the names (any Cyrillic → Russian, otherwise English). Only the dashboard's
   own labels are translated — the data itself is shown as-is.
+- `--manifest scans.json` (optional, ignored in `--share`) verifies every local
+  document/scan referenced in the tree against a sidecar JSON manifest and adds a
+  small integrity summary (verified / missing / size-mismatch / unmanifested).
+  Add `--verify-hash` to also check SHA-256. The manifest lists `{path, size,
+  sha256}` relative to a `base`; absolute paths and parent-directory escapes are
+  rejected, and external `http(s)` URLs are reported as external, not missing.
 - The script prints a small JSON summary (people, families, M/F, year range,
   generations) — use it to tell the user what was built.
 - It ships its own copy of the parser (`scripts/gedcom.py`) and also falls back
@@ -72,7 +78,7 @@ double-clicking, e.g.:
 
 ## What the dashboard contains
 
-Twelve sections, in this order:
+Thirteen sections, in this order:
 
 1. **Обзор** — people, families, M/F, year span, generations, average lifespan,
    average children per family, distinct surnames.
@@ -85,13 +91,22 @@ Twelve sections, in this order:
 8. **Долгожители** — longest lifespans (from paired birth/death years).
 9. **Самые большие семьи** — families with the most children.
 10. **Топ мест** — most frequent places across events.
-11. **Лента событий** — a filterable timeline of births, marriages, deaths.
-12. **Проверка качества данных** — missing dates/parents, isolated records and
+11. **Связанные лица** — an ASSO/RELA summary: how many association links exist,
+    how many people have them, how many associates fall **outside the pedigree**
+    (no family of their own), broken pointers, and a by-relation breakdown. These
+    are social/evidentiary links (witnesses, godparents, informants), **not**
+    blood kinship, and are reported separately for exactly that reason.
+12. **Лента событий** — a filterable timeline of births, marriages, deaths.
+13. **Проверка качества данных** — missing dates/parents, isolated records and
     the structural completeness counts come from the shared parser **audit**
-    (`gedcom.py … audit`), so the report and the reader agree. Date anomalies are
-    flagged as *possible*, not errors, in the spirit of the GPS; the `QUAY`
-    summary shows the citation assessments recorded in the file — explicitly
-    **not** a GPS proof status.
+    (`gedcom.py … audit`), so the report and the reader agree. **Source coverage**
+    is reported honestly at the fact level: the number of citations, how many
+    genealogical facts have a source (cited / total), an overall coverage
+    percentage, and a *coverage by fact type* table. A record-level `1 SOUR` on a
+    person is counted separately and does **not** imply every fact is sourced.
+    Date anomalies are flagged as *possible*, not errors, in the spirit of the
+    GPS; the `QUAY` summary shows the citation assessments recorded in the file —
+    explicitly **not** a GPS proof status.
 
 ## Offline behaviour
 

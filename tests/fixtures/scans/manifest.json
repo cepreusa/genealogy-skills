@@ -1,0 +1,19 @@
+{
+  "base": ".",
+  "algorithm": "sha256",
+  "files": [
+    {
+      "path": "img/present.png",
+      "size": 15,
+      "sha256": "a07a6da0b29aebfa9243deb006eb72eb57ffd6e733bd4bd287ca909a2c84db35"
+    },
+    {
+      "path": "skany/missing.png",
+      "size": 100
+    },
+    {
+      "path": "img/mismatch.png",
+      "size": 999
+    }
+  ]
+}

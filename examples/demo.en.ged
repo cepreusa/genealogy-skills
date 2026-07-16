@@ -15,6 +15,11 @@
 1 BIRT
 2 DATE ABT 1900
 2 PLAC Sheffield, England
+2 SOUR @S1@
+3 PAGE ref. 3/1/42, p.15
+3 QUAY 3
+2 ASSO @I10@
+3 RELA Officiating minister at baptism
 1 DEAT
 2 DATE 1974
 2 CAUS Natural causes
@@ -58,11 +63,15 @@
 1 BIRT
 2 DATE 12 MAR 1928
 2 PLAC Sheffield, England
+2 SOUR @S1@
+3 QUAY 2
 1 DEAT
 2 DATE 5 JUN 1995
 1 OCCU Engineer
 1 FAMC @F1@
 1 FAMS @F2@
+1 ASSO @I10@
+2 RELA Godfather
 0 @I4@ INDI
 1 NAME Margaret /Johnson/
 2 GIVN Margaret
@@ -125,11 +134,25 @@
 2 PLAC London, England
 1 OCCU Journalist
 1 FAMC @F3@
+0 @I10@ INDI
+1 NAME Reverend Thomas /Clarke/
+1 SEX M
+1 BIRT
+2 DATE ABT 1865
+2 PLAC Sheffield, England
+1 DEAT
+2 DATE 1932
+1 OCCU Clergyman
+2 PLAC All Saints Church, Sheffield
+1 NOTE Parish minister; appears as a witness in several of the Smith family's parish records. Not a blood relative — linked via ASSO.
 0 @F1@ FAM
 1 HUSB @I1@
 1 WIFE @I2@
 1 MARR
 2 DATE 1926
+2 PLAC Sheffield, England
+2 SOUR @S1@
+3 QUAY 2
 1 CHIL @I3@
 1 CHIL @I5@
 0 @F2@ FAM

@@ -198,8 +198,18 @@
       <div id="placesFallback" class="fallback"></div></div>
   </section>
 
-  <!-- 11. Timeline -->
-  <section id="s-timeline">
+   <!-- 10b. Associated people (ASSO/RELA) -->
+   <section id="s-associates">
+     <h2><span data-i18n="sec_associates"></span> <span class="hint" data-i18n="sec_associates_hint"></span></h2>
+     <div class="panel">
+       <div class="grid q-grid" id="aCards"></div>
+       <div id="aByRelation" style="margin-top:18px"></div>
+       <p class="hint" data-i18n="a_note" style="margin-top:12px"></p>
+     </div>
+   </section>
+
+   <!-- 11. Timeline -->
+   <section id="s-timeline">
     <h2><span data-i18n="sec_timeline"></span> <span class="hint" data-i18n="sec_timeline_hint"></span></h2>
     <div class="panel">
       <div class="timeline-ctl" id="tlCtl"></div>
@@ -436,6 +446,30 @@ renderCloud("cloudGiven", DATA.cloud_given);
     options:{indexAxis:"y",plugins:{legend:{display:false}},
       scales:{x:{ticks:{color:css("--muted")}},y:{ticks:{color:css("--muted")}}}}
   });
+})();
+
+// ---- 10b. associates (ASSO/RELA) ----
+(function(){
+  const a = DATA.associates;
+  const sec = document.getElementById("s-associates");
+  if(!a || !a.pairs){
+    document.getElementById("aCards").innerHTML =
+      '<span class="empty">'+esc(T("a_none"))+'</span>';
+    document.getElementById("aByRelation").innerHTML = "";
+    return;
+  }
+  const cards=[
+    [T("a_pairs"),a.pairs],[T("a_people"),a.people_with],
+    [T("a_non_pedigree"),a.non_pedigree],[T("a_unresolved"),a.unresolved],
+  ];
+  document.getElementById("aCards").innerHTML = cards.map(([l,v])=>
+    `<div class="card"><div class="num">${v}</div><div class="lbl">${esc(l)}</div></div>`).join("");
+  if(a.by_relation && a.by_relation.length){
+    document.getElementById("aByRelation").innerHTML =
+      "<h3 style='margin:0 0 8px;font-size:1rem'>"+esc(T("a_by_relation"))+"</h3>"+
+      tbl([T("col_relation"),T("col_count")],
+        a.by_relation.map(r=>[esc(r.relation),r.count]),[null,"n"]);
+  }
 })();
 
 // ---- 11. timeline ----

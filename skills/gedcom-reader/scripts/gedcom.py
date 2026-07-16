@@ -374,6 +374,27 @@ class Tree:
                     docs.append(d)
         return docs
 
+    def all_document_paths(self):
+        """Every distinct local document/scan path referenced in the tree.
+
+        Combines OBJE/FILE attachments with scan paths mentioned in NOTE/EVEN
+        text. External URLs are excluded. Order-preserved, de-duplicated. Used
+        by the optional scan-manifest integrity check.
+        """
+        seen, out = set(), []
+        for indi in self.people.values():
+            for d in self._documents_of(indi):
+                p = d["path"]
+                if p and not re.match(r"^https?://", p, re.I) and p not in seen:
+                    seen.add(p)
+                    out.append(p)
+            note_texts = [n.value for n in indi.children_by("NOTE") if n.value]
+            for p in extract_links(note_texts)["scans"]:
+                if p not in seen:
+                    seen.add(p)
+                    out.append(p)
+        return out
+
     def person_full(self, indi):
         data = self.person_brief(indi)
         # Death cause, if recorded.
@@ -504,6 +525,74 @@ class Tree:
     def record_sources(self, record):
         """Record-level SOUR citations attached directly to a record (not a fact)."""
         return [self.source_ref(s) for s in record.children_by("SOUR")]
+
+    def _asso_role(self, asso):
+        """Read the relation of an ASSO node (RELA, then ROLE, then _RELATION)."""
+        for tag in ("RELA", "ROLE", "_RELATION"):
+            v = (asso.value_of(tag) or "").strip()
+            if v:
+                return v
+        return ""
+
+    def associations_of(self, indi):
+        """Return outbound associations (ASSO) declared on an individual.
+
+        Each entry: {to_id, to_name, relation, resolved}. ASSO nodes directly
+        under the INDI and those nested under a fact/event are both collected.
+        Associations are social/evidentiary links (witness, godparent,
+        informant, …) — NOT parent/spouse/child relationships.
+        """
+        out = []
+        seen = set()
+
+        def collect(node):
+            for asso in node.children_by("ASSO"):
+                ref = (asso.value or "").strip()
+                if not ref.startswith("@"):
+                    continue
+                tid = self.norm_id(ref)
+                rel = self._asso_role(asso)
+                key = (tid, rel)
+                if key in seen:
+                    continue
+                seen.add(key)
+                target = self.people.get(tid)
+                out.append({
+                    "to_id": tid,
+                    "to_name": self.name(target) if target else "",
+                    "relation": rel,
+                    "resolved": target is not None,
+                })
+
+        collect(indi)
+        for child in indi.children:
+            if child.tag != "ASSO":
+                collect(child)
+        return out
+
+    def association_index(self):
+        """Build a two-directional associate index: xid -> [entries].
+
+        Each person lists their outbound associates and the inbound ones (people
+        who named them). Direction is recorded so the UI can label it.
+        """
+        index = {}
+        unresolved = []
+        for xid, indi in self.people.items():
+            for a in self.associations_of(indi):
+                index.setdefault(xid, []).append({
+                    "other_id": a["to_id"], "other_name": a["to_name"],
+                    "relation": a["relation"], "direction": "outbound",
+                })
+                if a["resolved"]:
+                    index.setdefault(a["to_id"], []).append({
+                        "other_id": xid, "other_name": self.name(indi),
+                        "relation": a["relation"], "direction": "inbound",
+                    })
+                else:
+                    unresolved.append({"from_id": xid, "to_id": a["to_id"],
+                                       "relation": a["relation"]})
+        return index, unresolved
 
     def find(self, query):
         """Return list of INDI xrefs matching an id or name fragment."""
@@ -1114,6 +1203,80 @@ def audit_tree(tree):
         "metrics": _audit_metrics(tree),
         "issues": issues,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Scan manifest (optional integrity check for attached documents/scans)
+# --------------------------------------------------------------------------- #
+#
+# A sidecar JSON manifest lets the tree/report verify that referenced scans
+# exist (and optionally match a SHA-256). Paths are relative to the manifest's
+# directory + its "base"; absolute paths and parent-escapes are rejected so a
+# manifest can't point outside its tree. Pure stdlib (hashlib).
+
+import hashlib  # noqa: E402  (kept local to this optional feature)
+import os        # noqa: E402  (only the manifest feature needs the filesystem)
+
+
+def load_scan_manifest(path):
+    """Load a scan manifest JSON. Returns {base, algorithm, files:{path:meta}}."""
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    base = data.get("base", ".")
+    files = {}
+    for entry in data.get("files", []):
+        p = (entry.get("path") or "").replace("\\", "/").strip()
+        if p:
+            files[p] = entry
+    return {
+        "base": base,
+        "algorithm": data.get("algorithm", "sha256"),
+        "root": os.path.dirname(os.path.abspath(path)),
+        "files": files,
+    }
+
+
+def _safe_join(root, base, relpath):
+    """Join root/base/relpath, rejecting absolute paths and parent escapes."""
+    rel = relpath.replace("\\", "/").strip()
+    if rel.startswith("/") or (len(rel) > 1 and rel[1] == ":"):
+        return None  # absolute path not allowed
+    full = os.path.normpath(os.path.join(root, base, rel))
+    anchor = os.path.normpath(os.path.join(root, base))
+    if not (full == anchor or full.startswith(anchor + os.sep)):
+        return None  # escaped the manifest base
+    return full
+
+
+def verify_scan(manifest, relpath, do_hash=False):
+    """Return an integrity result for one scan path against the manifest."""
+    rel = relpath.replace("\\", "/").strip()
+    if re.match(r"^https?://", rel, re.IGNORECASE):
+        return {"path": rel, "state": "external-url"}
+    entry = manifest["files"].get(rel)
+    if entry is None:
+        return {"path": rel, "state": "unmanifested"}
+    full = _safe_join(manifest["root"], manifest["base"], rel)
+    if full is None:
+        return {"path": rel, "state": "invalid-path"}
+    if not os.path.exists(full):
+        return {"path": rel, "state": "missing"}
+    result = {"path": rel, "state": "verified"}
+    exp_size = entry.get("size")
+    if exp_size is not None and os.path.getsize(full) != exp_size:
+        result["state"] = "mismatch"
+        return result
+    exp_hash = entry.get("sha256")
+    if do_hash and exp_hash:
+        h = hashlib.sha256()
+        with open(full, "rb") as fh:
+            for chunk in iter(lambda: fh.read(65536), b""):
+                h.update(chunk)
+        if h.hexdigest().lower() != str(exp_hash).lower():
+            result["state"] = "mismatch"
+    elif not do_hash and exp_hash:
+        result["state"] = "unchecked"
+    return result
 
 
 # --------------------------------------------------------------------------- #

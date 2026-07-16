@@ -141,6 +141,7 @@ body.has-banner #bar{top:30px}
   #pbody .rel:hover{background:#f4efe4}
   #pbody .doc{display:block;margin:4px 0}
   #pbody .muted{color:var(--muted)}
+  #pbody .muted{font-size:11.5px;margin:2px 0 6px}
   #pbody details>summary{cursor:pointer;color:var(--muted);font-size:12px;
     margin:6px 0}
 </style>
@@ -876,6 +877,22 @@ const DATA = /*__DATA__*/null;
     relRow(T("sec_parents"), d && d.parents);
     relRow(T("sec_spouses"), d && d.spouses);
     relRow(T("sec_children"), d && d.children);
+
+    // Associates (ASSO/RELA): social/evidentiary links, NOT pedigree edges.
+    if(d && d.associates && d.associates.length){
+      section(T("sec_associates"));
+      const hint = el("div", "muted", T("associates_note"));
+      pbody.appendChild(hint);
+      for(const a of d.associates){
+        const label = a.relation
+          ? a.name + " — " + a.relation
+          : a.name;
+        const b = el("span", "rel", label);
+        if(a.direction === "inbound") b.title = T("assoc_inbound");
+        b.addEventListener("click", () => { setFocus(a.id); openPanel(a.id); });
+        pbody.appendChild(b);
+      }
+    }
 
     // Re-centre button
     section("");

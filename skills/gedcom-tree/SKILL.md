@@ -108,10 +108,19 @@ double-clicking, e.g.:
   it opens a side panel with the person's full record — facts (birth/death with
   cause), occupations, residences, **notes** (with PROVEN/PROBABLE/… status
   chips, and a foldaway changelog), **sources** (author/title + clickable
-  archive links), **documents & scans** (note-embedded `materials/skany/*.png`
-  paths and URLs become links), and clickable **relatives** to jump around. The
-  panel is keyboard-friendly (Esc closes). Clicking the card itself still
-  re-centres, as before.
+   archive links), **documents & scans** (note-embedded `materials/skany/*.png`
+   paths and URLs become links), clickable **relatives**, and **associated
+   people** to jump around. The panel is keyboard-friendly (Esc closes).
+   Clicking the card itself still re-centres, as before.
+- **Associated people (ASSO/RELA):** the panel lists a person's associates —
+  witnesses, godparents, informants, officiants and the like — under a separate
+  *Связанные лица / Associated people* heading with the relation label and an
+  explicit note that these are **social/evidentiary links, not blood kinship**.
+  The link is shown in both directions (the person who named the associate, and
+  the associate who was named). Associates are clickable to re-centre on them;
+  associations that point to an omitted/protected person are dropped in
+  `--private` / `--share` modes. A source citation carries a **QUAY chip**
+  labelled as the submitter's assessment (tooltip: *not a GPS proof status*).
 
 ## Offline behaviour
 
