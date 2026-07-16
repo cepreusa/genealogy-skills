@@ -230,7 +230,10 @@
 </main>
 <footer id="footer"></footer>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<!-- Chart.js is vendored and inlined by the generator so the report is fully
+     offline. The generator replaces the marker below with the library source;
+     if it is left untouched the page still parses and degrades to data tables. -->
+<script>/*__CHARTJS__*/</script>
 <script>
 const DATA = /*__DATA__*/null;
 const hasChart = typeof Chart !== "undefined";

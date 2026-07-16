@@ -110,11 +110,14 @@ Thirteen sections, in this order:
 
 ## Offline behaviour
 
-The HTML is self-contained. Bar/donut/stacked charts use **Chart.js from a CDN**;
-each of them has a fallback data table underneath. The name clouds, heatmap and
-timeline are rendered with plain SVG/CSS/DOM and need **no** network. So even
-without internet the report stays fully informative — only the four Chart.js
-graphs go blank, and their tables cover the same numbers.
+The HTML is **fully offline** — no CDN, no network, nothing to fetch. The
+**Chart.js** library is vendored in the skill (`scripts/vendor/chart.umd.min.js`,
+Chart.js 4.4.3, MIT) and **inlined into the output file** by the generator, so
+the bar/donut/stacked charts render with no internet at all. The name clouds,
+heatmap and timeline are plain SVG/CSS/DOM. Every chart still has a data table
+underneath, so if the vendored library is ever removed the report degrades
+gracefully to tables rather than blank canvases. The file opens with a
+double-click and works on an air-gapped machine.
 
 ## Notes
 

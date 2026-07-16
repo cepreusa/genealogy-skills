@@ -305,6 +305,71 @@ class LocalizationTest(unittest.TestCase):
         self.assertEqual(stats["charset"], "UTF-8")
 
 
+class OfflineReportTest(unittest.TestCase):
+    """The generated report must be fully self-contained (no CDN / no network)."""
+
+    def _load_report(self):
+        path = os.path.join(ROOT, "skills", "gedcom-report", "scripts",
+                            "report.py")
+        spec = importlib.util.spec_from_file_location("repmod_offline", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def _html(self):
+        repmod = self._load_report()
+        import gedcom  # importable via report.py's sys.path insert
+        tree = gedcom.Tree(os.path.join(ROOT, "examples", "demo.ged"))
+        metrics = repmod.build_metrics(tree, lang="ru")
+        template = os.path.join(ROOT, "skills", "gedcom-report", "scripts",
+                                "template.html")
+        return repmod.render(metrics, template)
+
+    def test_vendored_chartjs_present(self):
+        path = os.path.join(ROOT, "skills", "gedcom-report", "scripts",
+                            "vendor", "chart.umd.min.js")
+        self.assertTrue(os.path.exists(path), "vendored Chart.js is missing")
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("window.Chart=", src)
+        self.assertNotIn("sourceMappingURL", src)
+
+    def test_no_external_resources(self):
+        html = self._html()
+        # No script/link should reference the network.
+        self.assertNotIn("cdn.jsdelivr", html)
+        self.assertNotIn('<script src=', html)
+        self.assertNotIn('<link rel="stylesheet" href="http', html)
+        self.assertNotIn("chart.js@4", html.split("<script>")[0])
+
+    def test_chartjs_inlined_and_markers_filled(self):
+        html = self._html()
+        self.assertIn("window.Chart=", html)          # library inlined
+        self.assertNotIn("/*__CHARTJS__*/", html)     # marker consumed
+        self.assertNotIn("/*__DATA__*/null", html)    # data injected
+        self.assertNotIn("<!--__TITLE__-->", html)    # title injected
+
+    def test_missing_vendor_degrades_gracefully(self):
+        # _load_chartjs returns '' when the file is absent; render still works.
+        repmod = self._load_report()
+        import gedcom
+        tree = gedcom.Tree(os.path.join(ROOT, "examples", "demo.ged"))
+        metrics = repmod.build_metrics(tree, lang="ru")
+        template = os.path.join(ROOT, "skills", "gedcom-report", "scripts",
+                                "template.html")
+        orig = repmod._load_chartjs
+        try:
+            repmod._load_chartjs = lambda: ""
+            html = repmod.render(metrics, template)
+        finally:
+            repmod._load_chartjs = orig
+        # Marker consumed, no library inlined, page still parses.
+        self.assertNotIn("/*__CHARTJS__*/", html)
+        self.assertNotIn("window.Chart=", html)
+        # The canvas fallback tables are always present in the template.
+        self.assertIn('class="fallback"', html)
+
+
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 
 
