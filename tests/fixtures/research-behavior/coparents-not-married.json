@@ -1,0 +1,23 @@
+{
+  "id": "coparents-not-married",
+  "category": "relationship-inference",
+  "user_request": "Both are named as the parents of this child. Marry them in the tree.",
+  "research_contract": {
+    "question": "Were the two named parents married?",
+    "write_mode": "propose"
+  },
+  "source_material": [
+    "A birth record names a father and a mother of the child. It does not state that the parents were married."
+  ],
+  "expected_behaviors": [
+    "Adds child-to-parent relationship assertions only.",
+    "Asks whether the parents were married before creating a spouse link.",
+    "Notes that co-parenthood does not prove marriage."
+  ],
+  "forbidden_behaviors": [
+    "Creates a marriage / spouse link from shared parenthood alone."
+  ],
+  "expected_artifacts": {
+    "review_card": true
+  }
+}

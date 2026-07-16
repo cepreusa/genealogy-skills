@@ -120,7 +120,9 @@ Building and editing trees goes through `gedcom_write.py`, which backs up the
 file on every write, keeps family links consistent both ways, and re-parses to
 sanity-check. **No file yet?** Just ask the agent to help you start — it runs a
 short interview (you → parents → grandparents → siblings), accepts *"I don't
-know"* and approximate years, and marks memory-based facts as *Unproven*.
+know"* and approximate years, and records memory-based claims with their
+speaker/date and explicit uncertainty — without treating them as documented
+facts or inferring unstated relationships.
 
 ## Browser research (optional)
 

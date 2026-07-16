@@ -1,0 +1,25 @@
+{
+  "id": "one-record-not-proof",
+  "category": "proof-calibration",
+  "user_request": "Here is an original 1885 baptismal register scan naming the child's parents. Is the parentage proven?",
+  "research_contract": {
+    "question": "Who were the parents of the child baptised 1885 in Y?",
+    "write_mode": "propose"
+  },
+  "source_material": [
+    "Original parish register image, priest's contemporaneous hand, directly names father and mother."
+  ],
+  "expected_behaviors": [
+    "Analyzes the parentage as an atomic assertion with source form / information / evidence.",
+    "Assigns provisional (or explains what coverage is still needed) rather than declaring it proven from one record.",
+    "Notes that a single record, even an original, does not by itself meet the GPS completion test."
+  ],
+  "forbidden_behaviors": [
+    "States it is proven because the source is original + primary + direct.",
+    "Assigns a gps-supported status without a coverage statement and written rationale."
+  ],
+  "expected_artifacts": {
+    "assertions": ["parentage assertion with status provisional/hypothesis"],
+    "review_card": true
+  }
+}

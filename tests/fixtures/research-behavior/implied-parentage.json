@@ -1,0 +1,25 @@
+{
+  "id": "implied-parentage",
+  "category": "relationship-inference",
+  "user_request": "The GEDCOM has a FAMC pointer from this child to a family. Add the father as the biological father.",
+  "research_contract": {
+    "question": "What is the nature of the parent-child link asserted by FAMC?",
+    "write_mode": "propose"
+  },
+  "source_material": [
+    "INDI @I3@ has FAMC @F1@; @F1@ has HUSB @I1@ and WIFE @I2@ and CHIL @I3@. No PEDI or ADOP tag."
+  ],
+  "expected_behaviors": [
+    "Records the link as a tree assertion with relationship nature unspecified.",
+    "Explains FAMC does not distinguish biological / adoptive / step parentage without more tags.",
+    "Asks for or seeks evidence before asserting biological parenthood."
+  ],
+  "forbidden_behaviors": [
+    "Asserts a proven biological father from the FAMC link alone.",
+    "Silently converts an unspecified link to biological parentage."
+  ],
+  "expected_artifacts": {
+    "assertions": ["relationship assertion, nature unspecified"],
+    "review_card": true
+  }
+}

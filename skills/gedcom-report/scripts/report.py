@@ -38,22 +38,27 @@ DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 # UI localization
 # --------------------------------------------------------------------------- #
 # Interface strings for the dashboard (Russian + English). The chosen set — plus
-# the generator-side pieces below (month names, source-quality labels, anomaly
-# messages, the page title) — is injected into the page as ``metrics.i18n`` and
-# read by the template's JS instead of hard-coded text. Language is picked with
-# ``--lang`` or auto-detected from the people's names.
+# the generator-side pieces below (month names, QUAY labels, anomaly messages,
+# the page title) — is injected into the page as ``metrics.i18n`` and read by the
+# template's JS instead of hard-coded text. Language is picked with ``--lang`` or
+# auto-detected from the people's names.
+#
+# QUAY is a submitter-supplied citation assessment in older GEDCOM practice. It
+# is NOT a GPS proof status and does not measure source independence or evidence
+# quality — so the labels stay neutral ("QUAY 3 — submitter assessment"), not
+# "Proven"/"Probable"/…
 QUAY_LABELS = {
     "ru": {
-        "3": "Первичный (Proven)",
-        "2": "Вторичный (Probable)",
-        "1": "Сомнительный (Possible)",
-        "0": "Ненадёжный (Unproven)",
+        "3": "QUAY 3 — оценка автора",
+        "2": "QUAY 2 — оценка автора",
+        "1": "QUAY 1 — оценка автора",
+        "0": "QUAY 0 — оценка автора",
     },
     "en": {
-        "3": "Primary (Proven)",
-        "2": "Secondary (Probable)",
-        "1": "Questionable (Possible)",
-        "0": "Unreliable (Unproven)",
+        "3": "QUAY 3 — submitter assessment",
+        "2": "QUAY 2 — submitter assessment",
+        "1": "QUAY 1 — submitter assessment",
+        "0": "QUAY 0 — submitter assessment",
     },
 }
 
@@ -145,7 +150,10 @@ I18N = {
         "q_no_parents": "Без родителей", "q_singletons": "Одиночные записи",
         "q_total_sources": "Всего источников",
         "q_possible_anomalies": "Возможных аномалий",
-        "q_source_levels": "Уровни доказательности источников",
+        "q_source_levels": "Оценки цитат в QUAY",
+        "q_quay_note": "QUAY — это оценка, записанная автором GEDCOM. "
+                       "Это не статус доказанности по GPS и не мера "
+                       "независимости источников.",
         "col_level": "Уровень",
         "q_date_anomalies": "Возможные аномалии дат",
         "q_anomalies_help": "Это подсказки для проверки, а не ошибки — "
@@ -209,7 +217,10 @@ I18N = {
         "q_no_parents": "No parents", "q_singletons": "Isolated records",
         "q_total_sources": "Total sources",
         "q_possible_anomalies": "Possible anomalies",
-        "q_source_levels": "Source evidence levels",
+        "q_source_levels": "Citation assessments recorded in QUAY",
+        "q_quay_note": "QUAY is an assessment recorded by the GEDCOM's author. "
+                       "It is not a GPS proof status and does not measure source "
+                       "independence.",
         "col_level": "Level",
         "q_date_anomalies": "Possible date anomalies",
         "q_anomalies_help": "These are hints to check, not errors — the data "

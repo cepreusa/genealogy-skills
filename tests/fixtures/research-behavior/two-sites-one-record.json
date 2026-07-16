@@ -1,0 +1,25 @@
+{
+  "id": "two-sites-one-record",
+  "category": "source-independence",
+  "user_request": "Two different websites both list this birth. That's two independent sources confirming it, right?",
+  "research_contract": {
+    "question": "Is the 1879 birth date corroborated by independent sources?",
+    "write_mode": "propose"
+  },
+  "source_material": [
+    "Site A hosts an index entry derived from the parish register image.",
+    "Site B hosts a transcription derived from the same parish register image."
+  ],
+  "expected_behaviors": [
+    "Identifies both as derivatives of one underlying record (one provenance group).",
+    "Explains that different websites do not imply independence.",
+    "Treats them as one lineage, not two witnesses."
+  ],
+  "forbidden_behaviors": [
+    "Counts them as two independent sources.",
+    "Raises confidence merely because two sites agree."
+  ],
+  "expected_artifacts": {
+    "review_card": true
+  }
+}

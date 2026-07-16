@@ -15,7 +15,7 @@
 ### Damaged or Illegible Scans
 - 19th-century books often damaged by mold, water, fire, insects
 - Multiple experts may give different readings of the same word
-- **Guideline:** Trust indexers who worked with originals over AI scan analysis. If uncertain, mark as "Possible" and note the ambiguity
+- **Guideline:** Compare the image, the index, and any independent reading; neither an indexer nor an AI transcription gets automatic priority from its label alone. If uncertain, record the competing readings, keep the affected assertion `provisional` or `unresolved`, and note the ambiguity
 
 ### Language Switches in Records
 - Same parish may switch languages across time periods:
@@ -136,8 +136,8 @@
 
 ### Godparents and Witnesses ≠ Relatives (Usually)
 - Godparents were often neighbors or friends, not necessarily blood relatives
-- BUT patterns emerge: if the same person appears as godparent for all children, they're likely close family
-- Witnesses at marriages often are relatives — note their surnames
+- Repeated service as witness or godparent is evidence of **association**. It may guide FAN research but does not establish kinship without additional evidence — treat it as a research lead, not a relationship assertion
+- Witnesses at marriages are often relatives — note their surnames as leads, not proof
 
 ### Children of Multiple Marriages
 - Widowers/widows frequently remarried
@@ -153,14 +153,14 @@
 - **Every identification must have evidence.** "Same first name in same village" is not proof — it's a hypothesis
 - Always consider: could this be a different person?
 
-### Ignoring Negative Evidence
-- "Not found" is not nothing — it's data that eliminates possibilities
-- Document every search that returned zero results: database, parameters, date range
-- Negative evidence narrows down where the family WASN'T
+### Negative Search Results vs Negative Evidence
+- A no-hit search is a **scoped negative search result**, not automatically evidence. Document every one: database, parameters, date range, index vs image coverage, pages inspected
+- It becomes **negative evidence** only after you show the entry was expected, the records survive and were available, the searched range covers the expected time/place, and variants/index gaps were handled (see [gps-methodology.md](gps-methodology.md) §6)
+- Always constrain the conclusion to the exact collection/place/date/pages searched — never "zero results eliminates X" without that justification
 
 ### Single-Source Reliance
 - One index entry is a lead, not a conclusion
-- **Minimum for "Proven" status:** original document scan, or 2+ independent derivative sources agreeing
+- **No fixed number or type of records establishes a conclusion.** Evaluate coverage, assertion quality, dependency, conflicts, and the written argument for the exact question (see [gps-methodology.md](gps-methodology.md) §2)
 - Even original documents can contain errors (scribe mistakes, informant inaccuracies)
 
 ### Not Checking All Record Types
@@ -177,9 +177,9 @@ For each time period, check:
 ### Not Working Backwards
 - Always work from known to unknown — from yourself backward in time
 - Jumping ahead ("I know my ancestor came from village X in 1700") without proving each generation leads to wrong-line errors
-- Each generation link must have evidence
+- Each generation link is its own relationship assertion; proving one generation does not validate the next
 
-### Overreliance on Family Oral History
-- Family stories preserve core truths but garble details
-- "Grandma came from Germany" might mean Prussian Poland, Volga German colony in Russia, or Austrian Galicia
-- Use oral history as a **starting hypothesis**, then verify with documents
+### Family Oral History
+- An interview is a real source. Record who spoke, when, and — per assertion — whether they report firsthand knowledge, family tradition, inference, or uncertainty
+- Do not assign one blanket status to everything a person said. Oral information is not automatically weak; its value depends on the specific assertion and the speaker's knowledge
+- "Grandma came from Germany" might mean Prussian Poland, Volga German colony in Russia, or Austrian Galicia — treat details as `provisional` or `hypothesis` and verify with documents

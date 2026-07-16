@@ -463,7 +463,8 @@ renderCloud("cloudGiven", DATA.cloud_given);
   if(q.quay && q.quay.length){
     document.getElementById("qSources").innerHTML =
       "<h3 style='margin:0 0 8px;font-size:1rem'>"+esc(T("q_source_levels"))+"</h3>"+
-      tbl([T("col_level"),T("col_count")], q.quay.map(x=>[x.level,x.count]),[null,"n"]);
+      tbl([T("col_level"),T("col_count")], q.quay.map(x=>[x.level,x.count]),[null,"n"])+
+      `<p style="color:var(--muted);font-size:.82rem;margin:8px 0 0">${esc(T("q_quay_note"))}</p>`;
   }
   const an = document.getElementById("qAnomalies");
   if(q.anomaly_total){

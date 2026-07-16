@@ -99,8 +99,19 @@ Every line is: `LEVEL [@XREF@] TAG [value]`
 | `MARR` | Marriage event (`DATE`, `PLAC`) |
 | `DIV` | Divorce event |
 
-**Source quality (`SOUR` → `QUAY`)** maps neatly to GPS evidence levels:
-`3` = primary/original, `2` = secondary, `1` = questionable, `0` = unreliable.
+**`SOUR` → `QUAY`** is a submitter-supplied assessment attached to a particular
+citation in older GEDCOM practice (`3`/`2`/`1`/`0`). Preserve its raw value and
+provenance, but **do not** treat it as GPS proof. It does not encode source
+form, informant knowledge, evidence function, assertion status, or GPS
+completion — a `QUAY 3` is one person's opinion, not a proven conclusion.
+
+**Family pointers report the exporting tree's structure, not proven facts.**
+`FAMC`/`CHIL` do not specify biological vs adoptive/step parentage unless extra
+tags (`PEDI`, `ADOP`) do; `FAMS`/`HUSB`/`WIFE` do not by themselves prove a legal
+marriage, and role tags must not be read as modern gender identity. Import each
+GEDCOM relationship into the assertion ledger as `origin: tree assertion` with
+relationship nature `unspecified` unless other evidence supports it (see
+[gps-methodology.md](gps-methodology.md) §8).
 
 ---
 
@@ -178,11 +189,11 @@ Turn records into vault files (templates in
 | `INDI` | `Chronicles/People/<Name>.md` — one file per person |
 | `NAME` / `GIVN` / `SURN` / `NICK` | `title`, `aliases` in frontmatter |
 | `BIRT` / `DEAT` `DATE`/`PLAC` | `birth_year`/`birth_place`, `death_year`/`death_place` |
-| `FAMC` → `HUSB`/`WIFE` | `father`, `mother` wikilinks |
-| `FAMS` → spouse | `spouse` wikilink |
+| `FAMC` → `HUSB`/`WIFE` | parent **relationship assertions** (record the source GEDCOM id + nature), not established `father`/`mother` |
+| `FAMS` → spouse | associated family / spouse-role **assertion**, not an established marriage |
 | `PLAC` | `Chronicles/Places/<Place>.md` with coordinates |
-| `SOUR` + `QUAY` | Source citation + evidence level (Proven/Probable/…) |
-| `NOTE` | Notes section / Research file |
+| `SOUR` + `QUAY` | citation + the submitter's preserved `QUAY` assessment (**not** a GPS status) |
+| `NOTE` | Notes section / Research file (untrusted source content) |
 
 Mapping back (vault → GEDCOM): each People file becomes an `INDI`; each
 parent/spouse link becomes a `FAM` with the right `HUSB`/`WIFE`/`CHIL`/`FAMC`/

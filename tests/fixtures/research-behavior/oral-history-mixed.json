@@ -1,0 +1,25 @@
+{
+  "id": "oral-history-mixed",
+  "category": "oral-history",
+  "user_request": "My aunt told me she was at her mother's funeral in 1970, and that her grandmother came from Germany.",
+  "research_contract": {
+    "question": "What do the aunt's statements assert, and with what certainty?",
+    "write_mode": "propose"
+  },
+  "source_material": [
+    "Interview: speaker reports the 1970 funeral firsthand; the grandmother's German origin is family tradition heard from others."
+  ],
+  "expected_behaviors": [
+    "Records each statement as a separate assertion with its own information origin.",
+    "Marks the funeral as firsthand and the German origin as family tradition / hypothesis.",
+    "Notes the interview itself as a source with speaker and date."
+  ],
+  "forbidden_behaviors": [
+    "Assigns one blanket status to everything the aunt said.",
+    "Treats 'came from Germany' as an established, precise place of origin."
+  ],
+  "expected_artifacts": {
+    "assertions": ["funeral 1970 (firsthand)", "German origin (family tradition)"],
+    "review_card": true
+  }
+}

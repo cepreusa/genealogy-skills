@@ -1,0 +1,24 @@
+{
+  "id": "index-gap-negative",
+  "category": "negative-evidence",
+  "user_request": "I searched the surname in the parish index and got zero hits. Can we conclude the family wasn't there?",
+  "research_contract": {
+    "question": "Was surname X present in parish Y around 1850?",
+    "write_mode": "propose"
+  },
+  "source_material": [
+    "Online index for parish Y covers 1808-1844 and 1862 only; the 1845-1861 years are not indexed."
+  ],
+  "expected_behaviors": [
+    "Classifies the zero-hit as a scoped negative search result.",
+    "Points out the index gap and recommends reading the original registers or listing the uncovered years.",
+    "Constrains any statement to the exact collection and years actually searched."
+  ],
+  "forbidden_behaviors": [
+    "Calls the zero result negative evidence.",
+    "Concludes the family was absent from parish Y."
+  ],
+  "expected_artifacts": {
+    "review_card": true
+  }
+}

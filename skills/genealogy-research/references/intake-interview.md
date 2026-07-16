@@ -58,16 +58,20 @@ If a name is unknown, it's fine to add a person with only a surname or only a
 role (e.g. "бабушка по маме") — the tree tolerates surname-only cards. Fill the
 given name later.
 
-## Recording provenance — everything here is *oral history*
+## Recording provenance — intake is an *oral-history source*
 
-Facts gathered in intake come from memory, not documents. Be honest about that
-(GPS — see [gps-methodology.md](gps-methodology.md)):
+The interview itself is a source; facts come from memory, not documents. Be
+honest about that per assertion (see [gps-methodology.md](gps-methodology.md)):
 
-- On **every** person you add, put a note recording the source and level, e.g.
-  `Источник: со слов <кто рассказал>, <дата>. Family oral history — Unproven.`
+- On **every** person you add, put a note naming the speaker and date, and — for
+  each material claim — whether it is firsthand, family tradition, or uncertain,
+  e.g. `Источник: со слов <кто рассказал>, <дата>. Firsthand: год рождения;
+  family tradition: место рождения. Статус: provisional.`
 - Use `gedcom_add_person`'s `note` on creation, or `gedcom_set add_note` after.
-- Treat these as **hypotheses to confirm** later against records. Do not present
-  oral history as proven.
+- Do not assign one blanket status to a whole person. Oral information is not
+  automatically weak — its value depends on the assertion and the speaker's
+  knowledge. Treat details to be confirmed later as `provisional` or
+  `hypothesis`, not "proven".
 
 ## Turning answers into GEDCOM (tool sequence)
 
@@ -77,12 +81,18 @@ Use the write tools (they allocate ids, keep two-way links, back up, re-parse):
    to save it (offer a sensible default next to the vault, e.g.
    `my-family/tree.ged`) and an optional tree name. Then `gedcom_add_person`
    for the starting person (note the returned `@Ixx@`).
-2. **Each additional person** → `gedcom_add_person`, then link them:
-   - Parents to each other: `gedcom_link relation:"spouses"`.
-   - A child to their parents: `gedcom_link relation:"child"` with one or both
-     parents.
-   - Grandparents: add the couple, marry them, then attach the relevant parent
-     as their `child`.
+2. **Each additional person** → `gedcom_add_person`, then link **only the
+   relationships the user actually asserts**:
+   - A child to their parent(s): `gedcom_link relation:"child"` with one or both
+     parents — from the explicit statement, not from a shared household.
+   - Link two adults as `spouses` **only when the user says** they were married
+     or partners. Do not infer marriage merely because two people are named as
+     someone's parents.
+   - When it matters and isn't clear, ask whether a parent link is biological,
+     adoptive, step, foster, or guardian.
+   - GEDCOM needs a family record to hold two parents; note that this is
+     representational structure — it does **not** itself assert a marriage.
+   - Don't infer sex from a name; ask when you need it to encode faithfully.
 3. **Unknowns:** omit the date, or pass `ABT <year>`; add a surname-only or
    role-only person when a name is missing.
 4. Confirm the growing shape briefly ("добавил маму и обеих бабушек, связал"),
@@ -122,7 +132,7 @@ the primary artefact from intake.
 
 → `gedcom_init` (`tree.ged`), then
 `gedcom_add_person given:"Иван" surname:"Петров" sex:"M" birt_date:"1985"
-birt_place:"Москва" note:"Источник: со слов Ивана, 2026-07. Family oral history — Unproven."`
+birt_place:"Москва" note:"Источник: со слов Ивана, 2026-07. Firsthand. Статус: provisional."`
 
 > **Agent:** Отлично. А как звали ваших родителей — отца и мать (девичью
 > фамилию мамы тоже, если знаете)?
@@ -130,8 +140,15 @@ birt_place:"Москва" note:"Источник: со слов Ивана, 2026
 > Иванова, кажется 1962-й.
 
 → add `Пётр Петров` (`M`, `ABT 1960`), add `Мария Иванова` (`F`, `ABT 1962`),
-`gedcom_link spouses` (Пётр, Мария), `gedcom_link child` (Иван → Пётр, Мария).
-Each with an oral-history note.
+`gedcom_link child` (Иван → Пётр, Мария). Each with an oral-history note. Then
+ask before marrying them:
+
+> **Agent:** Пётр и Мария были в браке (или партнёрами), или вы просто знаете,
+> что это ваши родители?
+> **User:** Да, были женаты.
+
+→ only now `gedcom_link spouses` (Пётр, Мария). If the user didn't confirm a
+marriage, leave them linked to Иван as parents without a spouse link.
 
 > **Agent:** Записал родителей и связал с вами. Теперь бабушки и дедушки —
 > начнём с папиной стороны: помните, как звали его родителей?

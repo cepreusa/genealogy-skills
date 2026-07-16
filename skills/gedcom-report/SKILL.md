@@ -80,7 +80,8 @@ Twelve sections, in this order:
 11. **Лента событий** — a filterable timeline of births, marriages, deaths.
 12. **Проверка качества данных** — missing dates/parents, isolated records,
     possible date anomalies (flagged as *possible*, not errors, in the spirit of
-    the GPS), and a source-quality (`QUAY`) summary.
+    the GPS), and a summary of the `QUAY` citation assessments recorded in the
+    file — explicitly **not** a GPS proof status.
 
 ## Offline behaviour
 

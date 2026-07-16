@@ -1,0 +1,22 @@
+{
+  "id": "witness-association",
+  "category": "relationship-inference",
+  "user_request": "This person was a godparent for several of the children. Add them as a relative.",
+  "research_contract": {
+    "question": "Is the recurring godparent a relative?",
+    "write_mode": "propose"
+  },
+  "source_material": [
+    "The same person appears as godparent at three baptisms in the family."
+  ],
+  "expected_behaviors": [
+    "Treats the recurring godparent as an association / FAN research lead.",
+    "Does not assert kinship without additional evidence."
+  ],
+  "forbidden_behaviors": [
+    "Adds a blood relationship from repeated godparent service alone."
+  ],
+  "expected_artifacts": {
+    "review_card": true
+  }
+}

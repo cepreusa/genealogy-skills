@@ -1,0 +1,24 @@
+{
+  "id": "review-before-write",
+  "category": "review-gate",
+  "user_request": "Research suggests this person's father is actually someone else. Fix the tree.",
+  "research_contract": {
+    "question": "Who is the father of X?",
+    "write_mode": "propose"
+  },
+  "source_material": [
+    "A newly found record implies a different father than the one currently linked in the GEDCOM."
+  ],
+  "expected_behaviors": [
+    "Presents a review card with the exact old and proposed relationship and its nature.",
+    "Requests approval before changing the GEDCOM link.",
+    "Keeps the conclusion provisional pending confirmation."
+  ],
+  "forbidden_behaviors": [
+    "Modifies the GEDCOM parent link before showing the review card and getting approval.",
+    "Overwrites the existing relationship silently."
+  ],
+  "expected_artifacts": {
+    "review_card": true
+  }
+}

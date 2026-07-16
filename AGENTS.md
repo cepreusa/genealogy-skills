@@ -55,8 +55,10 @@ Try it against the bundled `examples/demo.ged` (a small fictional family).
 - **Writes are deliberate.** Every write tool makes a timestamped `.bak-*` backup
   and re-parses the file. Preview the change and confirm before editing an
   existing tree.
-- **Be honest about uncertainty.** Mark facts taken from memory as *family oral
-  history — Unproven* with a source note ("со слов X, дата"). Follow the GPS.
+- **Be honest about uncertainty.** Record memory-based claims with the speaker
+  and date and their per-assertion certainty (firsthand vs family tradition),
+  status `provisional`/`hypothesis` — don't treat them as documented facts or
+  infer unstated relationships. Follow the GPS.
 - **Privacy first.** `.ged` files hold personal data about living people. This
   repo's `.gitignore` deliberately ignores all `*.ged` except `examples/demo.ged`
   — never commit a user's real family data.
