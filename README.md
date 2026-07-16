@@ -25,10 +25,10 @@ with `--lang ru|en`).</sub>
 
 | Skill | What it does |
 |---|---|
-| **gedcom-reader** | Read a `.ged` and answer questions about people, dates and relationships. Also builds/edits trees — add people, set facts, link spouses/children — with automatic backups. **Start here.** |
-| **gedcom-report** | A 12-section analytics **dashboard**: counts, charts, name cloud, birthday heatmap, timeline and a data-quality check, as one HTML file. |
-| **gedcom-tree** | An **interactive HTML tree viewer** centred on a person: ancestors above, descendants below, click-to-recenter, pan/zoom, name search — plus an **ⓘ detail panel** per card (notes, sources, document/scan links, relatives). |
-| **genealogy-research** | Plan research with the **Genealogical Proof Standard**, keep an Obsidian vault, and **start a tree from nothing** through a short interview. |
+| **gedcom-reader** | Read a `.ged` and answer questions about people, dates and relationships. Also builds/edits trees — add people, set facts, link spouses/children — with automatic backups, and a shared structural **`audit`** (broken links, cycles, missing dates). **Start here.** |
+| **gedcom-report** | A 13-section analytics **dashboard**: counts, charts, name cloud, birthday heatmap, timeline, an **associates (ASSO/RELA)** summary, **source-coverage** and a data-quality check — one **fully-offline** HTML file (Chart.js is vendored inline, no CDN). |
+| **gedcom-tree** | An **interactive HTML tree viewer** centred on a person: ancestors above, descendants below, click-to-recenter, pan/zoom, name search — plus an **ⓘ detail panel** per card (notes, sources with QUAY chips, document/scan links, relatives, and **associated people**). |
+| **genealogy-research** | Plan research with the **Genealogical Proof Standard** (proof statuses, atomic assertions, a bounded run-protocol), keep an Obsidian vault, and **start a tree from nothing** through a short interview. |
 
 You need only **gedcom-reader** to get going; add the others as you want reports,
 a visual tree, or research help.
@@ -108,8 +108,13 @@ No agent needed — run the bundled fictional family straight from a shell:
 PYTHONIOENCODING=utf-8 python3 skills/gedcom-reader/scripts/gedcom.py \
   examples/demo.ged descendants "Иван Петров"
 
-# Build an analytics dashboard  ->  examples/demo.report.html
+# Build an analytics dashboard  ->  examples/demo.report.html  (works fully offline)
 PYTHONIOENCODING=utf-8 python3 skills/gedcom-report/scripts/report.py examples/demo.ged
+# ...safe to share publicly (living people omitted, fails closed on any leak):
+PYTHONIOENCODING=utf-8 python3 skills/gedcom-report/scripts/report.py examples/demo.ged --share
+
+# Check the structure of a tree (broken links, cycles, missing dates)
+PYTHONIOENCODING=utf-8 python3 skills/gedcom-reader/scripts/gedcom.py examples/demo.ged audit
 
 # Build an interactive tree viewer  ->  examples/demo.tree.html
 PYTHONIOENCODING=utf-8 python3 skills/gedcom-tree/scripts/tree.py \
@@ -144,11 +149,23 @@ paste a screenshot.
 ## Privacy
 
 GEDCOM files hold **personal data about living people**. The tools run
-**locally** and never touch the network, with one exception: `gedcom-report`
-loads Chart.js from a CDN (plain-table fallback offline). The browser MCP is
-opt-in, and only when you enable browser research. This repo's `.gitignore` keeps
-every `*.ged` out of version control except the fictional `examples/demo.ged` —
-keep your own family data local.
+**locally** and never touch the network — the report and tree viewers are
+**fully offline** (Chart.js is vendored inline, no CDN). The browser MCP is
+opt-in, and only when you enable browser research.
+
+When you want to **share** a tree or dashboard, `gedcom-report` and `gedcom-tree`
+take two mutually-exclusive flags:
+
+- `--private` — an *identified family view*: names and the graph stay, but exact
+  birthdays, places and family events of **possibly-living** people are stripped.
+  A banner makes clear it is **not anonymous**.
+- `--share` — a *fail-closed historical export*: possibly-living and
+  unknown-status people are omitted entirely, the source filename is hidden, and
+  generation **aborts** if a payload audit finds any protected data leaking
+  through. Use this to publish publicly.
+
+This repo's `.gitignore` keeps every `*.ged` out of version control except the
+fictional demos — keep your own family data local.
 
 ## Requirements & tests
 
