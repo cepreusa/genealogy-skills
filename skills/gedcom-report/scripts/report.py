@@ -160,7 +160,12 @@ I18N = {
         "sec_quality_hint": "для дальнейшего исследования",
         "q_no_birth": "Без даты рождения", "q_no_death": "Без даты смерти",
         "q_no_parents": "Без родителей", "q_singletons": "Одиночные записи",
-        "q_total_sources": "Всего источников",
+        "q_citations": "Ссылок на источники",
+        "q_facts_cited": "Фактов с источником",
+        "q_coverage": "Покрытие источниками",
+        "q_coverage_by_tag": "Покрытие источниками по типам фактов",
+        "q_record_level": "На уровне записи",
+        "col_fact": "Факт", "col_cited": "С источником", "col_pct": "%",
         "q_possible_anomalies": "Возможных аномалий",
         "q_source_levels": "Оценки цитат в QUAY",
         "q_quay_note": "QUAY — это оценка, записанная автором GEDCOM. "
@@ -233,7 +238,12 @@ I18N = {
         "sec_quality_hint": "for further research",
         "q_no_birth": "No birth date", "q_no_death": "No death date",
         "q_no_parents": "No parents", "q_singletons": "Isolated records",
-        "q_total_sources": "Total sources",
+        "q_citations": "Source citations",
+        "q_facts_cited": "Facts with a source",
+        "q_coverage": "Source coverage",
+        "q_coverage_by_tag": "Source coverage by fact type",
+        "q_record_level": "Record-level",
+        "col_fact": "Fact", "col_cited": "Cited", "col_pct": "%",
         "q_possible_anomalies": "Possible anomalies",
         "q_source_levels": "Citation assessments recorded in QUAY",
         "q_quay_note": "QUAY is an assessment recorded by the GEDCOM's author. "
@@ -514,11 +524,18 @@ def build_metrics(tree, lang="ru", audit_result=None, ctx=None):
         "isolated": am["isolated_people"],
         "anomalies": anomalies[:60],
         "anomaly_total": len(anomalies),
-        "sources_total": am["source_citations"],
         "quay": [{"level": quay_labels.get(k, f"QUAY {k}"), "count": quay_counts[k]}
                  for k in ("3", "2", "1", "0") if quay_counts.get(k)],
         "audit_errors": audit_result["summary"]["errors"],
         "audit_warnings": audit_result["summary"]["warnings"],
+        # Fact-level source provenance (record-level vs fact-level distinction).
+        "facts_total": am["facts_total"],
+        "facts_cited": am["facts_cited"],
+        "coverage_pct": am["coverage_pct"],
+        "fact_citations": am["fact_citations"],
+        "record_level_citations": am["record_level_citations"],
+        "citations_total": am["fact_citations"] + am["record_level_citations"],
+        "coverage_by_tag": am["coverage_by_tag"][:12],
     }
 
     heatmap = [{"m": int(k.split("-")[0]), "d": int(k.split("-")[1]), "c": v}

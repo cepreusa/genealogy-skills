@@ -306,17 +306,22 @@ class Tree:
 
         Handles both inline sources (``1 SOUR <text>`` with ``2 PAGE``/``2 DATA
         /TEXT``) and pointers to a top-level SOUR record (``1 SOUR @Sxx@`` whose
-        record carries ``AUTH``/``TITL``/``TEXT``). Returns keys that are always
-        present (empty string when absent): title, author, page, text, url.
+        record carries ``AUTH``/``TITL``/``TEXT``). Always-present keys (empty
+        string / None when absent): title, author, page, text, url, source_id,
+        quay. ``source_id`` is the ``@Sxx@`` pointer for a linked source, or
+        ``None`` for an inline source.
         """
         page = sour.value_of("PAGE")
         text = sour.value_of("DATA", "TEXT") or sour.value_of("TEXT")
+        quay = sour.value_of("QUAY")
         title = author = ""
+        source_id = None
         # A pointer like "1 SOUR @S500003@" carries its value as the ref.
         ref = (sour.value or "").strip()
         rec = None
         if ref.startswith("@"):
-            rec = self.sources.get(self.norm_id(ref))
+            source_id = self.norm_id(ref)
+            rec = self.sources.get(source_id)
         if rec is not None:
             author = rec.value_of("AUTH")
             title = rec.value_of("TITL")
@@ -325,13 +330,14 @@ class Tree:
         elif ref and not ref.startswith("@"):
             title = ref  # inline free-text source description
         url = ""
-        for cand in (page, ref):
+        for cand in (page, ref, text, title):
             m = re.search(r"https?://\S+", cand or "")
             if m:
                 url = m.group(0)
                 break
         return {"title": title, "author": author, "page": page,
-                "text": text, "url": url}
+                "text": text, "url": url, "source_id": source_id,
+                "quay": quay}
 
     def _obje_files(self, obje):
         """Yield {path, form, title} for each FILE inside an OBJE node."""
@@ -452,6 +458,52 @@ class Tree:
                     data["children"].append(
                         {"id": p.xref, "name": self.name(p)})
         return data
+
+    # Genealogical fact/event tags whose citations count toward source coverage.
+    INDI_FACT_TAGS = (
+        "NAME", "SEX", "BIRT", "CHR", "BAPM", "DEAT", "BURI", "CREM", "ADOP",
+        "OCCU", "RESI", "CENS", "EDUC", "EMIG", "IMMI", "NATU", "RELI",
+        "TITL", "EVEN", "FACT",
+    )
+    FAM_FACT_TAGS = (
+        "MARR", "DIV", "ANUL", "ENGA", "MARB", "MARC", "MARL", "MARS",
+        "EVEN", "FACT",
+    )
+
+    def facts_of(self, record, owner_type, owner_id):
+        """Enumerate a record's genealogical facts with their fact-level sources.
+
+        Returns a list of fact dicts; each has a deterministic ``id`` and a
+        ``citations`` list (fact-level SOUR children resolved via source_ref).
+        Record-level SOUR children of the record itself are NOT folded into
+        every fact — the caller gets those separately so a person-level citation
+        never falsely "covers" every fact.
+        """
+        tags = (self.INDI_FACT_TAGS if owner_type == "INDI"
+                else self.FAM_FACT_TAGS)
+        facts = []
+        counters = {}
+        for node in record.children:
+            if node.tag not in tags:
+                continue
+            counters[node.tag] = counters.get(node.tag, 0) + 1
+            ordinal = counters[node.tag]
+            citations = [self.source_ref(s) for s in node.children_by("SOUR")]
+            facts.append({
+                "id": f"{owner_type}:{owner_id}:{node.tag}:{ordinal}",
+                "tag": node.tag,
+                "type": node.value_of("TYPE"),
+                "value": (node.value or "").strip(),
+                "date": node.value_of("DATE"),
+                "place": node.value_of("PLAC"),
+                "citations": citations,
+                "cited": bool(citations),
+            })
+        return facts
+
+    def record_sources(self, record):
+        """Record-level SOUR citations attached directly to a record (not a fact)."""
+        return [self.source_ref(s) for s in record.children_by("SOUR")]
 
     def find(self, query):
         """Return list of INDI xrefs matching an id or name fragment."""
@@ -960,7 +1012,32 @@ def _audit_metrics(tree):
     people = tree.people
     no_birth = no_death = no_parent = isolated = 0
     quay = {"0": 0, "1": 0, "2": 0, "3": 0}
-    citations = 0
+    citations = 0                    # record-level INDI citations (legacy count)
+    fact_citations = 0               # fact-level citations
+    facts_total = facts_cited = 0
+    record_level = 0                 # record-level citations (INDI + FAM)
+    by_tag = {}                      # tag -> [eligible, cited]
+
+    def tally(record, owner_type, owner_id):
+        nonlocal facts_total, facts_cited, fact_citations, record_level
+        for fact in tree.facts_of(record, owner_type, owner_id):
+            facts_total += 1
+            slot = by_tag.setdefault(fact["tag"], [0, 0])
+            slot[0] += 1
+            if fact["cited"]:
+                facts_cited += 1
+                slot[1] += 1
+            for c in fact["citations"]:
+                fact_citations += 1
+                q = (c.get("quay") or "").strip()
+                if q in quay:
+                    quay[q] += 1
+        for c in tree.record_sources(record):
+            record_level += 1
+            q = (c.get("quay") or "").strip()
+            if q in quay:
+                quay[q] += 1
+
     for xid, indi in people.items():
         if not indi.value_of("BIRT", "DATE"):
             no_birth += 1
@@ -972,11 +1049,18 @@ def _audit_metrics(tree):
             no_parent += 1
         if not has_family:
             isolated += 1
-        for sour in indi.children_by("SOUR"):
-            citations += 1
-            q = sour.value_of("QUAY").strip()
-            if q in quay:
-                quay[q] += 1
+        citations += len(indi.children_by("SOUR"))
+        tally(indi, "INDI", xid)
+    for fid, fam in tree.families.items():
+        tally(fam, "FAM", fid)
+
+    coverage_pct = (round(100.0 * facts_cited / facts_total, 1)
+                    if facts_total else None)
+    coverage_by_tag = [
+        {"tag": tag, "eligible": e, "cited": c,
+         "pct": round(100.0 * c / e, 1) if e else None}
+        for tag, (e, c) in sorted(by_tag.items(), key=lambda kv: -kv[1][0])
+    ]
     return {
         "people_without_birth": no_birth,
         "people_without_death": no_death,
@@ -984,6 +1068,13 @@ def _audit_metrics(tree):
         "isolated_people": isolated,
         "source_citations": citations,
         "source_quality": quay,
+        # Fact-level provenance.
+        "facts_total": facts_total,
+        "facts_cited": facts_cited,
+        "coverage_pct": coverage_pct,
+        "fact_citations": fact_citations,
+        "record_level_citations": record_level,
+        "coverage_by_tag": coverage_by_tag,
     }
 
 

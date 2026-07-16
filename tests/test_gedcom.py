@@ -400,6 +400,60 @@ class AuditTest(unittest.TestCase):
         self.assertTrue(r["ok"], r["issues"])
 
 
+class ProvenanceTest(unittest.TestCase):
+    """Fact-level source provenance and coverage metrics."""
+
+    def _tree(self):
+        mod = _load_gedcom_module()
+        return mod.Tree(os.path.join(FIXTURES, "provenance.ged"))
+
+    def test_fact_level_citation_attaches_to_fact(self):
+        tree = self._tree()
+        facts = {f["tag"]: f for f in tree.facts_of(tree.people["@I1@"],
+                                                     "INDI", "@I1@")}
+        self.assertTrue(facts["BIRT"]["cited"])
+        self.assertFalse(facts["OCCU"]["cited"])
+        self.assertEqual(facts["BIRT"]["citations"][0]["quay"], "3")
+        self.assertEqual(facts["BIRT"]["citations"][0]["source_id"], "@S1@")
+
+    def test_record_level_source_is_separate(self):
+        tree = self._tree()
+        # @I1@ has a record-level `1 SOUR @S1@` that must not mark every fact cited.
+        rec = tree.record_sources(tree.people["@I1@"])
+        self.assertEqual(len(rec), 1)
+        facts = {f["tag"]: f for f in tree.facts_of(tree.people["@I1@"],
+                                                    "INDI", "@I1@")}
+        self.assertFalse(facts["OCCU"]["cited"])
+
+    def test_family_marriage_source_counted(self):
+        tree = self._tree()
+        facts = {f["tag"]: f for f in tree.facts_of(tree.families["@F1@"],
+                                                    "FAM", "@F1@")}
+        self.assertTrue(facts["MARR"]["cited"])
+        self.assertEqual(facts["MARR"]["citations"][0]["quay"], "2")
+
+    def test_fact_ids_are_deterministic(self):
+        tree = self._tree()
+        a = [f["id"] for f in tree.facts_of(tree.people["@I1@"], "INDI", "@I1@")]
+        b = [f["id"] for f in tree.facts_of(tree.people["@I1@"], "INDI", "@I1@")]
+        self.assertEqual(a, b)
+        self.assertIn("INDI:@I1@:BIRT:1", a)
+
+    def test_audit_coverage_metrics(self):
+        r = run_read(os.path.join(FIXTURES, "provenance.ged"), "audit")
+        m = r["metrics"]
+        self.assertGreater(m["facts_total"], 0)
+        self.assertEqual(m["facts_cited"], 2)   # I1 BIRT + F1 MARR
+        self.assertIsNotNone(m["coverage_pct"])
+        self.assertEqual(m["record_level_citations"], 1)
+        # QUAY from fact citations: one 3 and one 2.
+        self.assertEqual(m["source_quality"]["3"], 1)
+        self.assertEqual(m["source_quality"]["2"], 1)
+        by = {t["tag"]: t for t in m["coverage_by_tag"]}
+        self.assertEqual(by["BIRT"]["cited"], 1)
+        self.assertEqual(by["BIRT"]["eligible"], 2)
+
+
 class WriterAuditTest(unittest.TestCase):
     """Writer operations report an audit summary and stay structurally clean."""
 

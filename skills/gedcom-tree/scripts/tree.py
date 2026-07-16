@@ -98,6 +98,8 @@ I18N = {
         "status_negative": "негативный результат",
         "status_version": "версия",
         "no_results": "Никого не найдено",
+        "quay_note": "QUAY — оценка автора GEDCOM, а не статус "
+                     "доказанности по GPS.",
         "privacy_private": "Приватный режим: удалены чувствительные данные "
                            "возможно живущих людей. Имена, годы и родственные "
                            "связи сохранены — файл не анонимен.",
@@ -144,6 +146,8 @@ I18N = {
         "status_negative": "negative result",
         "status_version": "hypothesis",
         "no_results": "No one found",
+        "quay_note": "QUAY is the GEDCOM author's assessment, not a GPS "
+                     "proof status.",
         "privacy_private": "Private mode: sensitive details of possibly-living "
                            "people were removed. Names, years and family "
                            "relationships remain — this file is not anonymous.",
@@ -331,15 +335,25 @@ def build_details(tree, private=False, ctx=None):
         links = d.get("links", {"urls": [], "scans": []})
         events = d.get("events", [])
         documents = d.get("documents", [])
+        # Fact-level provenance: each fact with the sources attached to it, plus
+        # the record-level sources kept separate (a person-level SOUR does not
+        # implicitly support every fact).
+        facts = tree.facts_of(indi, "INDI", xid)
+        record_srcs = tree.record_sources(indi)
         if mode == "private":
             # Strip machine paths and URLs even for the deceased.
             sources = [dict(s, url="") for s in sources]
+            record_srcs = [dict(s, url="") for s in record_srcs]
+            facts = [dict(f, citations=[dict(c, url="") for c in f["citations"]])
+                     for f in facts]
             events = [dict(e, url="") for e in events]
             links = {"urls": [], "scans": []}
             documents = []
         details[xid] = {
             "notes": d.get("notes", []),
             "sources": sources,
+            "facts": facts,
+            "record_sources": record_srcs,
             "events": events,
             "occupations": d.get("occupations", []),
             "residences": residences,

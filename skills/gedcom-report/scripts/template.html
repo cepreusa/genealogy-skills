@@ -212,6 +212,7 @@
     <h2><span data-i18n="sec_quality"></span> <span class="hint" data-i18n="sec_quality_hint"></span></h2>
     <div class="panel">
       <div class="grid q-grid" id="qCards"></div>
+      <div id="qCoverage" style="margin-top:18px"></div>
       <div id="qSources" style="margin-top:18px"></div>
       <div id="qAnomalies" style="margin-top:18px"></div>
     </div>
@@ -467,14 +468,26 @@ renderCloud("cloudGiven", DATA.cloud_given);
 // ---- 12. quality ----
 (function(){
   const q = DATA.quality, o = DATA.overview;
+  const cov = (q.coverage_pct==null) ? T("no_data") : (q.coverage_pct+"%");
   const cards=[
     [T("q_no_birth"),q.no_birth],[T("q_no_death"),q.no_death],
     [T("q_no_parents"),q.no_parents],[T("q_singletons"),q.isolated],
-    [T("q_total_sources"),q.sources_total],
+    [T("q_citations"),q.citations_total],
+    [T("q_facts_cited"),q.facts_cited+" / "+q.facts_total],
+    [T("q_coverage"),cov],
     [T("q_possible_anomalies"),q.anomaly_total],
   ];
   document.getElementById("qCards").innerHTML = cards.map(([l,v])=>
     `<div class="card"><div class="num">${v}</div><div class="lbl">${esc(l)}</div></div>`).join("");
+
+  // Source coverage by fact type.
+  if(q.coverage_by_tag && q.coverage_by_tag.length){
+    const rows = q.coverage_by_tag.map(r=>[r.tag, r.cited+" / "+r.eligible,
+      (r.pct==null?"—":r.pct+"%")]);
+    document.getElementById("qCoverage").innerHTML =
+      "<h3 style='margin:0 0 8px;font-size:1rem'>"+esc(T("q_coverage_by_tag"))+"</h3>"+
+      tbl([T("col_fact"),T("col_cited"),T("col_pct")], rows, [null,"n","n"]);
+  }
   if(q.quay && q.quay.length){
     document.getElementById("qSources").innerHTML =
       "<h3 style='margin:0 0 8px;font-size:1rem'>"+esc(T("q_source_levels"))+"</h3>"+

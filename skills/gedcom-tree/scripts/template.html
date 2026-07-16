@@ -808,6 +808,12 @@ const DATA = /*__DATA__*/null;
           const box = el("div", "src");
           const head = [s.author, s.title].filter(Boolean).join(" — ");
           if(head) box.appendChild(el("div", "ti", head));
+          // QUAY is the submitter's own assessment, not a GPS proof status.
+          if(s.quay){
+            const chip = el("span", "chip", "QUAY " + s.quay);
+            chip.title = T("quay_note");
+            box.appendChild(chip);
+          }
           if(s.url) box.appendChild(linkEl(s.url, s.url));
           else if(s.page) box.appendChild(el("div", null, s.page));
           if(s.text) box.appendChild(el("div", "muted", s.text));
