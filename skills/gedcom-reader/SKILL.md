@@ -79,6 +79,14 @@ Commands:
 | `relationship <idA> <idB>` | Shortest kinship path between two people (parent, child and spouse each count as one step) |
 | `timeline [surname]` | Births, marriages, deaths in one list (optionally filtered) |
 | `list [limit]` | Brief listing of people (default 100) |
+| `audit` | Structural check: dangling/one-sided links, duplicate XREFs, ancestry cycles, source/object pointers, conservative date anomalies |
+
+`audit` prints a JSON report: `ok` (true only when there are no errors), a
+`summary` (errors/warnings/counts), `metrics` (missing-fact and source counts),
+and `issues` with a stable `code` per finding. It exits `0` even when findings
+exist — a completed audit is a success; branch on `ok`, not the exit code. Use
+it as the sanity check after edits, and to explain data-quality problems in
+plain language (translate each `code` for the user).
 
 IDs accept `I1`, `@I1@`, `F3`, etc. `person`, `ancestors`, `descendants`,
 `relationship` also accept a name fragment; if it matches several people the
@@ -152,8 +160,11 @@ research, so this mode is deliberate.
    ```
    Always include today's date, what changed from/to, and the source/reason
    (ask if not given, else write "per user correction").
-6. **Sanity-check.** Re-run `python3 scripts/gedcom.py <file> stats` and confirm
-   the counts still make sense and the file still parses.
+6. **Sanity-check.** Run `python3 scripts/gedcom.py <file> audit` (and `stats`
+   if useful): confirm the file still parses, the counts make sense, and the
+   edit introduced no new errors (dangling or one-sided links, duplicate ids).
+   The write tools already print an `audit` summary; a manual text edit does not,
+   so run it yourself.
 7. **Report** what you changed.
 
 ### Safety rules

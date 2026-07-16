@@ -297,11 +297,15 @@ def given_surname(tree, indi):
 # Metric builders
 # --------------------------------------------------------------------------- #
 
-def build_metrics(tree, lang="ru"):
+def build_metrics(tree, lang="ru", audit_result=None):
     people = tree.people
     families = tree.families
     anomaly_msg = ANOMALY.get(lang, ANOMALY["ru"])
     quay_labels = QUAY_LABELS.get(lang, QUAY_LABELS["ru"])
+    # Structural completeness/quality counts come from the shared parser audit so
+    # the report and the `gedcom.py audit` command never diverge.
+    audit_result = audit_result or tree.audit()
+    am = audit_result["metrics"]
 
     sex_counts = {"M": 0, "F": 0, "U": 0}
     surname_counts = {}
@@ -313,11 +317,7 @@ def build_metrics(tree, lang="ru"):
     day_month_counts = {}       # (month, day) -> count
     lifespans = []              # {name, birth, death, age}
     anomalies = []
-    no_birth = no_death = no_parents = isolated = 0
-    quay_counts = {}
-    sour_total = 0
 
-    # Precompute parent/child family membership for isolation + parents check.
     for xid, indi in people.items():
         sex = (indi.value_of("SEX") or "U").upper()
         if sex not in sex_counts:
@@ -351,11 +351,6 @@ def build_metrics(tree, lang="ru"):
                 key = f"{mon}-{day}"
                 day_month_counts[key] = day_month_counts.get(key, 0) + 1
 
-        if not birth["date"]:
-            no_birth += 1
-        if not death["date"]:
-            no_death += 1
-
         # Lifespan.
         if by is not None and dy is not None:
             age = dy - by
@@ -367,21 +362,6 @@ def build_metrics(tree, lang="ru"):
             elif age < 0:
                 anomalies.append(anomaly_msg["death_before_birth"].format(
                     name=tree.name(indi), dy=dy, by=by))
-
-        # Sources / evidence quality.
-        for s in indi.children_by("SOUR"):
-            sour_total += 1
-            q = s.value_of("QUAY")
-            if q:
-                quay_counts[q] = quay_counts.get(q, 0) + 1
-
-        # Isolation & missing parents.
-        has_famc = bool(indi.children_by("FAMC"))
-        has_fams = bool(indi.children_by("FAMS"))
-        if not has_famc:
-            no_parents += 1
-        if not has_famc and not has_fams:
-            isolated += 1
 
     # Family-level metrics: children counts, mother-age anomalies, marriage vs birth.
     family_sizes = []
@@ -469,16 +449,19 @@ def build_metrics(tree, lang="ru"):
         if lifespans else None
     avg_children = round(total_children / len(families), 2) if families else None
 
+    quay_counts = am["source_quality"]
     quality = {
-        "no_birth": no_birth,
-        "no_death": no_death,
-        "no_parents": no_parents,
-        "isolated": isolated,
+        "no_birth": am["people_without_birth"],
+        "no_death": am["people_without_death"],
+        "no_parents": am["people_without_parent_family"],
+        "isolated": am["isolated_people"],
         "anomalies": anomalies[:60],
         "anomaly_total": len(anomalies),
-        "sources_total": sour_total,
-        "quay": [{"level": quay_labels.get(k, f"QUAY {k}"), "count": v}
-                 for k, v in sorted(quay_counts.items(), reverse=True)],
+        "sources_total": am["source_citations"],
+        "quay": [{"level": quay_labels.get(k, f"QUAY {k}"), "count": quay_counts[k]}
+                 for k in ("3", "2", "1", "0") if quay_counts.get(k)],
+        "audit_errors": audit_result["summary"]["errors"],
+        "audit_warnings": audit_result["summary"]["warnings"],
     }
 
     heatmap = [{"m": int(k.split("-")[0]), "d": int(k.split("-")[1]), "c": v}

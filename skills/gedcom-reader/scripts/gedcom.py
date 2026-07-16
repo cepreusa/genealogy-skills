@@ -17,8 +17,14 @@ Usage:
     python3 gedcom.py <file.ged> relationship <idA> <idB>
     python3 gedcom.py <file.ged> timeline [surname-fragment]
     python3 gedcom.py <file.ged> list [limit]
+    python3 gedcom.py <file.ged> audit
 
 IDs may be given with or without @-signs (e.g. I1, @I1@, F3).
+
+``audit`` runs a structural check (dangling/one-sided links, duplicate XREFs,
+cycles, source/object pointers, conservative date anomalies) and prints a JSON
+report with a stable ``code`` per finding. It exits 0 even when findings exist;
+``ok`` is false only when there are errors.
 """
 
 import json
@@ -524,6 +530,500 @@ class Tree:
             gen += 1
         return result
 
+    def audit(self):
+        """Return a deterministic, JSON-serializable structural audit."""
+        return audit_tree(self)
+
+
+# --------------------------------------------------------------------------- #
+# Audit
+# --------------------------------------------------------------------------- #
+#
+# A read-only structural check over the parsed model. It operates on the Tree /
+# Node interface (never on raw lines), so it is honest about what a tolerant,
+# lossy parser can diagnose: CONC/CONT are already merged and source line
+# numbers are gone, so this is a MODEL-level audit, not a full GEDCOM grammar
+# validator. Findings carry a stable ``code`` and structured ``details``; the
+# English ``message`` is a convenience — consumers branch on ``code``.
+#
+# ``ok`` is true iff there are zero errors; warnings never make ok false. The
+# audit command still exits 0 when findings exist (a completed audit succeeded);
+# a non-zero exit is reserved for being unable to run.
+
+AUDIT_SCHEMA_VERSION = 1
+
+_XREF_RE = re.compile(r"^@[^@\s]+@$")
+_SEVERITY_RANK = {"error": 0, "warning": 1, "info": 2}
+
+
+def _valid_xref(value):
+    return bool(value) and bool(_XREF_RE.match(value.strip()))
+
+
+def _pointer(value):
+    """Return the raw pointer text if a value looks like a single @xref@."""
+    v = (value or "").strip()
+    return v if _valid_xref(v) else ""
+
+
+def _year_bounds(value):
+    """Conservative (min_year, max_year) for a GEDCOM date, or (None, None).
+
+    Only returns bounds when they can be read unambiguously. Handles plain
+    years, common qualifiers (ABT/EST/CAL/BEF/AFT) and ranges (BET..AND,
+    FROM..TO) by taking the outer years. Calendar-qualified or otherwise
+    unparseable dates yield (None, None) so no false chronology finding fires.
+    """
+    if not value:
+        return (None, None)
+    v = value.strip().upper()
+    if v.startswith("@#"):  # explicit non-Gregorian calendar — don't guess
+        return (None, None)
+    years = [int(y) for y in re.findall(r"\b(\d{3,4})\b", v)]
+    if not years:
+        return (None, None)
+    return (min(years), max(years))
+
+
+def _make_issue(severity, code, message, record=None, record_type=None,
+                path=None, value=None, related=None, details=None):
+    return {
+        "severity": severity,
+        "code": code,
+        "message": message,
+        "record": record,
+        "record_type": record_type,
+        "path": path,
+        "value": value,
+        "related": related or [],
+        "details": details or {},
+    }
+
+
+def _walk(node, prefix, out):
+    """Yield (path, node) for every descendant, path like INDI.BIRT.SOUR."""
+    for child in node.children:
+        p = prefix + "." + child.tag
+        out.append((p, child))
+        _walk(child, p, out)
+
+
+def _audit_structure(tree, issues):
+    recs = tree.records
+    heads = [r for r in recs if r.tag == "HEAD"]
+    trlrs = [r for r in recs if r.tag == "TRLR"]
+    if not heads:
+        issues.append(_make_issue("error", "format.head_missing",
+                                   "file has no HEAD record"))
+    elif len(heads) > 1:
+        issues.append(_make_issue("error", "format.head_duplicate",
+                                  f"file has {len(heads)} HEAD records",
+                                  details={"count": len(heads)}))
+    elif recs and recs[0].tag != "HEAD":
+        issues.append(_make_issue("warning", "format.head_not_first",
+                                  "HEAD is not the first record"))
+    if not trlrs:
+        issues.append(_make_issue("error", "format.trailer_missing",
+                                   "file has no TRLR record"))
+    elif len(trlrs) > 1:
+        issues.append(_make_issue("error", "format.trailer_duplicate",
+                                  f"file has {len(trlrs)} TRLR records",
+                                  details={"count": len(trlrs)}))
+    elif recs and recs[-1].tag != "TRLR":
+        issues.append(_make_issue("warning", "format.trailer_not_last",
+                                  "TRLR is not the last record"))
+    # Node levels: each child should be exactly parent.level + 1.
+    for rec in recs:
+        nodes = []
+        _walk(rec, rec.tag, nodes)
+        for path, node in nodes:
+            parent_level = node.level - 1
+            # find nearest ancestor via path depth is expensive; instead flag
+            # any node whose level is not a sensible step. We reconstruct the
+            # expected level from the number of path segments below the record.
+            depth = path.count(".")
+            if node.level != depth:
+                issues.append(_make_issue(
+                    "error", "format.level_jump",
+                    f"{rec.xref or rec.tag}: '{node.tag}' has level "
+                    f"{node.level}, expected {depth}",
+                    record=rec.xref, record_type=rec.tag, path=path,
+                    details={"level": node.level, "expected": depth}))
+            if not node.tag:
+                issues.append(_make_issue(
+                    "warning", "format.empty_tag",
+                    f"{rec.xref or rec.tag}: empty tag on a line",
+                    record=rec.xref, record_type=rec.tag, path=path))
+
+
+def _audit_xrefs(tree, issues, dup_ids):
+    seen = {}
+    for rec in tree.records:
+        if rec.tag in ("HEAD", "TRLR"):
+            continue
+        if rec.xref is None:
+            if rec.tag in ("INDI", "FAM"):
+                issues.append(_make_issue(
+                    "error", "xref.missing",
+                    f"a {rec.tag} record has no XREF id",
+                    record_type=rec.tag))
+            continue
+        if not _valid_xref(rec.xref):
+            issues.append(_make_issue(
+                "error", "xref.malformed",
+                f"malformed XREF id {rec.xref!r}",
+                record=rec.xref, record_type=rec.tag, value=rec.xref))
+        if rec.xref in seen:
+            dup_ids.add(rec.xref)
+        seen.setdefault(rec.xref, []).append(rec.tag)
+    for xid, tags in sorted(seen.items()):
+        if len(tags) > 1:
+            issues.append(_make_issue(
+                "error", "xref.duplicate",
+                f"XREF {xid} is defined {len(tags)} times",
+                record=xid, value=xid,
+                details={"count": len(tags), "types": tags}))
+
+
+def _audit_links(tree, issues, dup_ids):
+    people, families = tree.people, tree.families
+
+    def note_dangling(rec, path, ref, code):
+        issues.append(_make_issue(
+            "error", code,
+            f"{rec.xref}: {path} points to missing record {ref}",
+            record=rec.xref, record_type=rec.tag, path=path,
+            value=ref, related=[ref]))
+
+    for xid, indi in people.items():
+        if xid in dup_ids:
+            continue
+        for fs in indi.children_by("FAMS"):
+            ref = _pointer(fs.value)
+            if not ref:
+                continue
+            fid = tree.norm_id(ref)
+            if fid not in families:
+                note_dangling(indi, "INDI.FAMS", fs.value, "link.fams_dangling")
+            elif fid not in dup_ids:
+                fam = families[fid]
+                spouses = {tree.norm_id(_pointer(r.value))
+                           for role in ("HUSB", "WIFE")
+                           for r in fam.children_by(role) if _pointer(r.value)}
+                if xid not in spouses:
+                    issues.append(_make_issue(
+                        "error", "link.fams_missing_reverse",
+                        f"{xid}: FAMS {fid} but not listed as HUSB/WIFE there",
+                        record=xid, record_type="INDI", path="INDI.FAMS",
+                        value=fs.value, related=[fid]))
+        for fc in indi.children_by("FAMC"):
+            ref = _pointer(fc.value)
+            if not ref:
+                continue
+            fid = tree.norm_id(ref)
+            if fid not in families:
+                note_dangling(indi, "INDI.FAMC", fc.value, "link.famc_dangling")
+            elif fid not in dup_ids:
+                fam = families[fid]
+                kids = {tree.norm_id(_pointer(c.value))
+                        for c in fam.children_by("CHIL") if _pointer(c.value)}
+                if xid not in kids:
+                    issues.append(_make_issue(
+                        "error", "link.famc_missing_reverse",
+                        f"{xid}: FAMC {fid} but not listed as CHIL there",
+                        record=xid, record_type="INDI", path="INDI.FAMC",
+                        value=fc.value, related=[fid]))
+
+    for fid, fam in families.items():
+        if fid in dup_ids:
+            continue
+        spouses = []
+        for role in ("HUSB", "WIFE"):
+            refs = fam.children_by(role)
+            if len(refs) > 1:
+                issues.append(_make_issue(
+                    "warning", "link." + role.lower() + "_duplicate",
+                    f"{fid}: {len(refs)} {role} entries",
+                    record=fid, record_type="FAM",
+                    details={"count": len(refs)}))
+            for r in refs:
+                ref = _pointer(r.value)
+                if not ref:
+                    continue
+                iid = tree.norm_id(ref)
+                spouses.append(iid)
+                if iid not in people:
+                    note_dangling(fam, "FAM." + role, r.value,
+                                  "link." + role.lower() + "_dangling")
+                elif iid not in dup_ids:
+                    indi = people[iid]
+                    fams = {tree.norm_id(_pointer(f.value))
+                            for f in indi.children_by("FAMS") if _pointer(f.value)}
+                    if fid not in fams:
+                        issues.append(_make_issue(
+                            "error", "link.spouse_missing_reverse",
+                            f"{fid}: {role} {iid} but that person has no FAMS "
+                            f"back to {fid}",
+                            record=fid, record_type="FAM", path="FAM." + role,
+                            value=r.value, related=[iid]))
+        child_ids = []
+        for c in fam.children_by("CHIL"):
+            ref = _pointer(c.value)
+            if not ref:
+                continue
+            cid = tree.norm_id(ref)
+            child_ids.append(cid)
+            if cid not in people:
+                note_dangling(fam, "FAM.CHIL", c.value, "link.child_dangling")
+            elif cid not in dup_ids:
+                indi = people[cid]
+                famc = {tree.norm_id(_pointer(f.value))
+                        for f in indi.children_by("FAMC") if _pointer(f.value)}
+                if fid not in famc:
+                    issues.append(_make_issue(
+                        "error", "link.child_missing_reverse",
+                        f"{fid}: CHIL {cid} but that person has no FAMC back "
+                        f"to {fid}",
+                        record=fid, record_type="FAM", path="FAM.CHIL",
+                        value=c.value, related=[cid]))
+        if len(set(child_ids)) != len(child_ids):
+            issues.append(_make_issue(
+                "warning", "link.child_duplicate",
+                f"{fid}: the same child is listed more than once",
+                record=fid, record_type="FAM"))
+        # Family shape.
+        uniq_spouses = [s for s in spouses if s in people]
+        if len(uniq_spouses) == 2 and uniq_spouses[0] == uniq_spouses[1]:
+            issues.append(_make_issue(
+                "error", "family.same_spouses",
+                f"{fid}: the same person is both spouses",
+                record=fid, record_type="FAM", related=[uniq_spouses[0]]))
+        both = set(uniq_spouses) & set(child_ids)
+        for p in sorted(both):
+            issues.append(_make_issue(
+                "error", "family.child_is_spouse",
+                f"{fid}: {p} is both a spouse and a child",
+                record=fid, record_type="FAM", related=[p]))
+        if not uniq_spouses and not child_ids:
+            issues.append(_make_issue(
+                "warning", "family.empty",
+                f"{fid}: family has no spouses and no children",
+                record=fid, record_type="FAM"))
+
+
+def _audit_references(tree, issues):
+    """SOUR/OBJE pointer integrity and QUAY validity across all records."""
+    for rec in tree.records:
+        if rec.tag in ("HEAD", "TRLR"):
+            continue
+        nodes = [(rec.tag, rec)]
+        walked = []
+        _walk(rec, rec.tag, walked)
+        nodes.extend(walked)
+        for path, node in nodes:
+            if node.tag == "SOUR":
+                ref = _pointer(node.value)
+                if ref and tree.norm_id(ref) not in tree.sources:
+                    issues.append(_make_issue(
+                        "error", "source.pointer_dangling",
+                        f"{rec.xref}: SOUR points to missing {node.value}",
+                        record=rec.xref, record_type=rec.tag, path=path,
+                        value=node.value, related=[node.value]))
+                quay = node.value_of("QUAY")
+                if quay and quay.strip() not in ("0", "1", "2", "3"):
+                    issues.append(_make_issue(
+                        "warning", "source.quay_invalid",
+                        f"{rec.xref}: QUAY {quay!r} is not 0-3",
+                        record=rec.xref, record_type=rec.tag,
+                        path=path + ".QUAY", value=quay))
+            elif node.tag == "OBJE":
+                ref = _pointer(node.value)
+                if ref and tree.norm_id(ref) not in tree.objects:
+                    issues.append(_make_issue(
+                        "error", "object.pointer_dangling",
+                        f"{rec.xref}: OBJE points to missing {node.value}",
+                        record=rec.xref, record_type=rec.tag, path=path,
+                        value=node.value, related=[node.value]))
+
+
+def _audit_individuals(tree, issues):
+    for xid, indi in tree.people.items():
+        names = indi.children_by("NAME")
+        if not names:
+            issues.append(_make_issue(
+                "warning", "individual.name_missing",
+                f"{xid}: no NAME record", record=xid, record_type="INDI"))
+        elif all(not (n.value.strip() or n.value_of("GIVN") or n.value_of("SURN"))
+                 for n in names):
+            issues.append(_make_issue(
+                "warning", "individual.name_empty",
+                f"{xid}: NAME is empty", record=xid, record_type="INDI"))
+        sexes = indi.children_by("SEX")
+        if len(sexes) > 1:
+            issues.append(_make_issue(
+                "warning", "individual.sex_duplicate",
+                f"{xid}: {len(sexes)} SEX records",
+                record=xid, record_type="INDI"))
+        for s in sexes:
+            v = (s.value or "").strip().upper()
+            if v and v not in ("M", "F", "U"):
+                issues.append(_make_issue(
+                    "warning", "individual.sex_invalid",
+                    f"{xid}: SEX {s.value!r} is not M/F/U",
+                    record=xid, record_type="INDI", value=s.value))
+
+
+def _audit_dates(tree, issues):
+    def yr(node, tag):
+        lo, hi = _year_bounds(node.value_of(tag, "DATE"))
+        return lo, hi
+
+    for xid, indi in tree.people.items():
+        blo, bhi = yr(indi, "BIRT")
+        dlo, dhi = yr(indi, "DEAT")
+        if bhi is not None and dlo is not None and dlo < blo:
+            issues.append(_make_issue(
+                "warning", "date.death_before_birth",
+                f"{xid}: death year {dlo} is before birth year {blo}",
+                record=xid, record_type="INDI",
+                details={"birth_year": blo, "death_year": dlo}))
+
+    for fid, fam in tree.families.items():
+        mlo, mhi = _year_bounds(fam.value_of("MARR", "DATE"))
+        if mlo is None:
+            continue
+        for role in ("HUSB", "WIFE"):
+            ref = _pointer(fam.value_of(role))
+            if not ref:
+                continue
+            iid = tree.norm_id(ref)
+            indi = tree.people.get(iid)
+            if not indi:
+                continue
+            blo, bhi = _year_bounds(indi.value_of("BIRT", "DATE"))
+            dlo, dhi = _year_bounds(indi.value_of("DEAT", "DATE"))
+            if blo is not None and mhi is not None and mhi < blo:
+                issues.append(_make_issue(
+                    "warning", "date.marriage_before_birth",
+                    f"{fid}: marriage {mhi} before {iid}'s birth {blo}",
+                    record=fid, record_type="FAM", related=[iid],
+                    details={"marriage_year": mhi, "birth_year": blo}))
+            if dhi is not None and mlo is not None and mlo > dhi:
+                issues.append(_make_issue(
+                    "warning", "date.marriage_after_death",
+                    f"{fid}: marriage {mlo} after {iid}'s death {dhi}",
+                    record=fid, record_type="FAM", related=[iid],
+                    details={"marriage_year": mlo, "death_year": dhi}))
+
+
+def _audit_cycles(tree, issues):
+    """Detect ancestry cycles (a person among their own ancestors).
+
+    Pedigree collapse (the same ancestor reached by two paths) is NOT a cycle
+    and is not flagged; only a back-edge in the parent relation is.
+    """
+    WHITE, GREY, BLACK = 0, 1, 2
+    color = {}
+    reported = set()
+
+    def visit(pid, stack):
+        color[pid] = GREY
+        stack.append(pid)
+        for par in tree.parents_of(pid):
+            if color.get(par, WHITE) == GREY:
+                key = tuple(sorted((pid, par)))
+                if key not in reported:
+                    reported.add(key)
+                    issues.append(_make_issue(
+                        "error", "pedigree.cycle",
+                        f"ancestry cycle involving {par} and {pid}",
+                        record=par, record_type="INDI", related=[pid],
+                        details={"between": list(key)}))
+            elif color.get(par, WHITE) == WHITE:
+                visit(par, stack)
+        stack.pop()
+        color[pid] = BLACK
+
+    for xid in tree.people:
+        if color.get(xid, WHITE) == WHITE:
+            visit(xid, [])
+    for xid, indi in tree.people.items():
+        parents = tree.parents_of(xid)
+        if xid in parents:
+            issues.append(_make_issue(
+                "error", "pedigree.self_parent",
+                f"{xid} is their own parent",
+                record=xid, record_type="INDI"))
+
+
+def _audit_metrics(tree):
+    people = tree.people
+    no_birth = no_death = no_parent = isolated = 0
+    quay = {"0": 0, "1": 0, "2": 0, "3": 0}
+    citations = 0
+    for xid, indi in people.items():
+        if not indi.value_of("BIRT", "DATE"):
+            no_birth += 1
+        if not indi.value_of("DEAT", "DATE"):
+            no_death += 1
+        has_parent = bool(indi.children_by("FAMC"))
+        has_family = has_parent or bool(indi.children_by("FAMS"))
+        if not has_parent:
+            no_parent += 1
+        if not has_family:
+            isolated += 1
+        for sour in indi.children_by("SOUR"):
+            citations += 1
+            q = sour.value_of("QUAY").strip()
+            if q in quay:
+                quay[q] += 1
+    return {
+        "people_without_birth": no_birth,
+        "people_without_death": no_death,
+        "people_without_parent_family": no_parent,
+        "isolated_people": isolated,
+        "source_citations": citations,
+        "source_quality": quay,
+    }
+
+
+def audit_tree(tree):
+    """Run all structural checks and return a deterministic report dict."""
+    issues = []
+    dup_ids = set()
+    _audit_structure(tree, issues)
+    _audit_xrefs(tree, issues, dup_ids)
+    _audit_links(tree, issues, dup_ids)
+    _audit_references(tree, issues)
+    _audit_individuals(tree, issues)
+    _audit_dates(tree, issues)
+    _audit_cycles(tree, issues)
+
+    issues.sort(key=lambda i: (
+        _SEVERITY_RANK.get(i["severity"], 9), i["code"],
+        i["record"] or "", i["path"] or "", i["value"] or "",
+        ",".join(i["related"])))
+
+    errors = sum(1 for i in issues if i["severity"] == "error")
+    warnings = sum(1 for i in issues if i["severity"] == "warning")
+    info = sum(1 for i in issues if i["severity"] == "info")
+    return {
+        "schema_version": AUDIT_SCHEMA_VERSION,
+        "file": tree.path,
+        "ok": errors == 0,
+        "summary": {
+            "records": len(tree.records),
+            "people": len(tree.people),
+            "families": len(tree.families),
+            "errors": errors,
+            "warnings": warnings,
+            "info": info,
+            "total": len(issues),
+        },
+        "metrics": _audit_metrics(tree),
+        "issues": issues,
+    }
+
 
 # --------------------------------------------------------------------------- #
 # Commands
@@ -741,6 +1241,10 @@ def cmd_list(tree, args):
     return {"total": len(tree.people), "shown": len(out), "people": out}
 
 
+def cmd_audit(tree, args):
+    return tree.audit()
+
+
 COMMANDS = {
     "stats": cmd_stats,
     "person": cmd_person,
@@ -751,6 +1255,7 @@ COMMANDS = {
     "relationship": cmd_relationship,
     "timeline": cmd_timeline,
     "list": cmd_list,
+    "audit": cmd_audit,
 }
 
 

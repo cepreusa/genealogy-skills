@@ -12,6 +12,7 @@ venv/
 *.ged
 !examples/demo.ged
 !examples/demo.en.ged
+!tests/fixtures/*.ged
 *.bak-*.ged
 *.report.html
 *.tree.html

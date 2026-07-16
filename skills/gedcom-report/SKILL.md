@@ -78,10 +78,12 @@ Twelve sections, in this order:
 9. **Самые большие семьи** — families with the most children.
 10. **Топ мест** — most frequent places across events.
 11. **Лента событий** — a filterable timeline of births, marriages, deaths.
-12. **Проверка качества данных** — missing dates/parents, isolated records,
-    possible date anomalies (flagged as *possible*, not errors, in the spirit of
-    the GPS), and a summary of the `QUAY` citation assessments recorded in the
-    file — explicitly **not** a GPS proof status.
+12. **Проверка качества данных** — missing dates/parents, isolated records and
+    the structural completeness counts come from the shared parser **audit**
+    (`gedcom.py … audit`), so the report and the reader agree. Date anomalies are
+    flagged as *possible*, not errors, in the spirit of the GPS; the `QUAY`
+    summary shows the citation assessments recorded in the file — explicitly
+    **not** a GPS proof status.
 
 ## Offline behaviour
 

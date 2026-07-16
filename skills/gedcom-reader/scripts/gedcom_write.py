@@ -175,14 +175,21 @@ def write_out(tree, path, note):
     text = serialize(tree.records)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text)
-    # Sanity check: re-parse.
+    # Sanity check: re-parse and run a structural audit (summary only — the
+    # write is not blocked on pre-existing issues in an imported file).
     verify = gedcom.Tree(path)
+    audit = verify.audit()
     result = {
         "ok": True,
         "action": note,
         "file": path,
         "people": len(verify.people),
         "families": len(verify.families),
+        "audit": {
+            "ok": audit["ok"],
+            "errors": audit["summary"]["errors"],
+            "warnings": audit["summary"]["warnings"],
+        },
     }
     if backup:
         result["backup"] = os.path.basename(backup)
@@ -330,9 +337,13 @@ def cmd_init(args):
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text)
     verify = gedcom.Tree(path)
+    audit = verify.audit()
     print(json.dumps({"ok": True, "action": "init", "file": path,
                       "people": len(verify.people),
-                      "families": len(verify.families)},
+                      "families": len(verify.families),
+                      "audit": {"ok": audit["ok"],
+                                "errors": audit["summary"]["errors"],
+                                "warnings": audit["summary"]["warnings"]}},
                      ensure_ascii=False))
     return 0
 

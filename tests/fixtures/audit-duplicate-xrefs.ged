@@ -1,0 +1,11 @@
+0 HEAD
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME First /One/
+1 SEX M
+0 @I1@ INDI
+1 NAME Second /One/
+1 SEX F
+0 @I2@ INDI
+1 NAME Other /Two/
+0 TRLR

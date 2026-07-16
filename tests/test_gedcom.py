@@ -303,6 +303,134 @@ class LocalizationTest(unittest.TestCase):
         self.assertEqual(stats["charset"], "UTF-8")
 
 
+FIXTURES = os.path.join(ROOT, "tests", "fixtures")
+
+
+class AuditTest(unittest.TestCase):
+    """Structural audit: schema, determinism, and exact finding codes."""
+
+    def _audit(self, fixture):
+        return run_read(os.path.join(FIXTURES, fixture + ".ged"), "audit")
+
+    def _codes(self, report):
+        return sorted({i["code"] for i in report["issues"]})
+
+    def test_schema_and_clean_fixture(self):
+        r = self._audit("audit-clean")
+        self.assertEqual(r["schema_version"], 1)
+        for key in ("ok", "summary", "metrics", "issues", "file"):
+            self.assertIn(key, r)
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["summary"]["errors"], 0)
+        self.assertEqual(r["issues"], [])
+
+    def test_ok_equals_zero_errors(self):
+        r = self._audit("audit-dates")     # warnings only
+        self.assertTrue(r["ok"])
+        self.assertGreater(r["summary"]["warnings"], 0)
+        r2 = self._audit("audit-broken-links")
+        self.assertFalse(r2["ok"])
+        self.assertGreater(r2["summary"]["errors"], 0)
+
+    def test_cli_matches_api(self):
+        mod = _load_gedcom_module()
+        tree = mod.Tree(os.path.join(FIXTURES, "audit-broken-links.ged"))
+        api = tree.audit()
+        cli = self._audit("audit-broken-links")
+        # CLI result is the same report (file path is absolute in both).
+        self.assertEqual(api["summary"], cli["summary"])
+        self.assertEqual([i["code"] for i in api["issues"]],
+                         [i["code"] for i in cli["issues"]])
+
+    def test_audit_cli_exits_zero_with_findings(self):
+        # run_read uses check=True, so a non-zero exit would raise.
+        r = self._audit("audit-broken-links")
+        self.assertFalse(r["ok"])  # findings present, but command succeeded
+
+    def test_broken_links_codes(self):
+        codes = self._codes(self._audit("audit-broken-links"))
+        for expected in ("link.fams_dangling", "link.child_dangling",
+                         "link.child_missing_reverse", "link.child_duplicate",
+                         "family.child_is_spouse"):
+            self.assertIn(expected, codes)
+
+    def test_duplicate_xref_detected_despite_dict_overwrite(self):
+        r = self._audit("audit-duplicate-xrefs")
+        self.assertIn("xref.duplicate", self._codes(r))
+        dup = [i for i in r["issues"] if i["code"] == "xref.duplicate"][0]
+        self.assertEqual(dup["details"]["count"], 2)
+
+    def test_cycle_terminates_and_reports_once(self):
+        r = self._audit("audit-cycle")
+        cyc = [i for i in r["issues"] if i["code"] == "pedigree.cycle"]
+        self.assertEqual(len(cyc), 1)
+
+    def test_dates_flags_unambiguous_only(self):
+        codes = self._codes(self._audit("audit-dates"))
+        self.assertIn("date.death_before_birth", codes)
+        self.assertIn("date.marriage_before_birth", codes)
+        # The ABT/BET person (@I2@) must NOT produce a false chronology finding.
+        r = self._audit("audit-dates")
+        i2 = [i for i in r["issues"] if i["record"] == "@I2@"]
+        self.assertEqual(i2, [])
+
+    def test_references_pointer_and_quay(self):
+        codes = self._codes(self._audit("audit-references"))
+        self.assertIn("source.pointer_dangling", codes)
+        self.assertIn("object.pointer_dangling", codes)
+        self.assertIn("source.quay_invalid", codes)
+        # Inline SOUR text must not be treated as a dangling pointer.
+        r = self._audit("audit-references")
+        self.assertNotIn("Some inline source text",
+                         [i.get("value") for i in r["issues"]])
+
+    def test_clean_has_no_false_positives(self):
+        # audit-clean has a same-role family and approximate dates — no findings.
+        self.assertEqual(self._audit("audit-clean")["summary"]["total"], 0)
+
+    def test_deterministic_ordering(self):
+        a = self._audit("audit-broken-links")["issues"]
+        b = self._audit("audit-broken-links")["issues"]
+        self.assertEqual([i["code"] for i in a], [i["code"] for i in b])
+
+    def test_demo_audits_clean(self):
+        r = run_read(os.path.join(ROOT, "examples", "demo.ged"), "audit")
+        self.assertTrue(r["ok"], r["issues"])
+
+
+class WriterAuditTest(unittest.TestCase):
+    """Writer operations report an audit summary and stay structurally clean."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.ged = os.path.join(self.dir, "t.ged")
+
+    def test_write_output_carries_audit_summary(self):
+        init, _ = run_write(self.ged, "init", "--name", "T")
+        self.assertIn("audit", init)
+        self.assertTrue(init["audit"]["ok"])
+        res, _ = run_write(self.ged, "add-person", "--given", "Ann",
+                           "--surname", "Lee", "--sex", "F")
+        self.assertIn("audit", res)
+        self.assertEqual(res["audit"]["errors"], 0)
+
+    def test_linked_family_is_clean(self):
+        run_write(self.ged, "init", "--name", "T")
+        run_write(self.ged, "add-person", "--given", "A", "--surname", "X",
+                  "--sex", "M")
+        run_write(self.ged, "add-person", "--given", "B", "--surname", "Y",
+                  "--sex", "F")
+        run_write(self.ged, "link", "spouses", "A X", "B Y")
+        run_write(self.ged, "add-person", "--given", "C", "--surname", "X",
+                  "--sex", "M")
+        res, _ = run_write(self.ged, "link", "child", "C X",
+                           "--parent", "A X", "--parent", "B Y")
+        self.assertEqual(res["audit"]["errors"], 0)
+        # Independent audit confirms two-way link integrity.
+        report = run_read(self.ged, "audit")
+        self.assertTrue(report["ok"], report["issues"])
+
+
 class ParserCopiesInSyncTest(unittest.TestCase):
     def test_three_copies_identical(self):
         copies = [
